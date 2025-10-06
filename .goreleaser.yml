@@ -49,6 +49,7 @@ checksum:
 changelog:
   sort: asc
   use: github
+  format: "* {{.Message}}"  # Only show commit message, not author
   filters:
     exclude:
       - '^docs:'
