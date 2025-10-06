@@ -54,6 +54,8 @@ tokenscout positions               # Show open positions
 tokenscout sellall                 # Emergency: close all positions
 tokenscout wallet new              # Generate new wallet
 tokenscout wallet show             # View address & balance
+tokenscout version                 # Show version info
+tokenscout --version               # Show version (short)
 
 # Or use go run . for any command
 go run . init
@@ -85,7 +87,10 @@ risk:
 - [Configuration](docs/CONFIGURATION.md) - All config options explained
 - [Testing](docs/TESTING.md) - How to test dry-run mode
 - [Logging](docs/LOGGING.md) - Log levels and output examples
-- [Releasing](docs/RELEASING.md) - How releases are created
+- [Makefile](docs/MAKEFILE.md) - All make commands reference
+- [Version Info](docs/VERSION.md) - Version and build information
+- [Quick Release](docs/QUICKSTART_RELEASE.md) - TL;DR: `make release VERSION=v1.0.0`
+- [Releasing](docs/RELEASING.md) - Full release documentation
 - [Development](docs/DEVELOPMENT.md) - Status and roadmap
 
 ## Safety

@@ -23,6 +23,11 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	// Update version after SetVersion is called
+	rootCmd.Version = version
+	rootCmd.SetVersionTemplate(`{{.Version}}
+`)
+	
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

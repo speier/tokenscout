@@ -1,5 +1,7 @@
 # Release Process
 
+> 💡 **Quick Start:** See [QUICKSTART_RELEASE.md](QUICKSTART_RELEASE.md) for the simplest release guide.
+
 ## Automated Releases
 
 Releases are fully automated via GitHub Actions and GoReleaser.
@@ -84,13 +86,15 @@ GoReleaser automatically marks these as pre-releases.
 ## Testing Releases Locally
 
 ```bash
-# Test GoReleaser config
+# Check GoReleaser config
+make release-check
+
+# Test full release process (doesn't push)
+make release-test
+
+# Or use goreleaser directly
 goreleaser check
-
-# Build without releasing (snapshot)
 goreleaser build --snapshot --clean
-
-# Test full release locally
 goreleaser release --snapshot --clean
 ```
 
