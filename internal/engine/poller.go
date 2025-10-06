@@ -99,7 +99,7 @@ func (p *Poller) pollProgram(ctx context.Context, program solana.PublicKey, last
 	// Process new signatures (in reverse order - oldest first)
 	for i := len(sigs) - 1; i >= 0; i-- {
 		sig := sigs[i]
-		
+
 		// Skip failed transactions
 		if sig.Err != nil {
 			continue
@@ -129,13 +129,7 @@ func (p *Poller) pollProgram(ctx context.Context, program solana.PublicKey, last
 				continue
 			}
 
-			logger.Info().
-				Str("type", string(event.Type)).
-				Str("mint", event.Mint).
-				Str("signature", sig.Signature.String()).
-				Msg("New event detected via polling")
-
-			// Send to event channel
+			// Send to event channel (removed duplicate log - already logged with 🔔)
 			select {
 			case p.eventCh <- event:
 			default:
@@ -154,7 +148,7 @@ func (p *Poller) parseTransaction(tx *rpc.GetTransactionResult, program solana.P
 
 	// Look for keywords in log messages
 	logs := tx.Meta.LogMessages
-	
+
 	for _, log := range logs {
 		// Detect new pool initialization
 		if containsAny(log, []string{"InitializePool", "initialize", "CreatePool"}) {

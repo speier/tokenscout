@@ -145,13 +145,7 @@ func (l *Listener) processLog(ctx context.Context, logResult *ws.LogResult, prog
 		return
 	}
 
-	logger.Info().
-		Str("type", string(event.Type)).
-		Str("mint", event.Mint).
-		Str("program", program.String()).
-		Msg("New event detected")
-
-	// Send to event channel for processing
+	// Send to event channel for processing (removed duplicate log - already logged with 🔔)
 	select {
 	case l.eventCh <- event:
 	default:
@@ -161,11 +155,11 @@ func (l *Listener) processLog(ctx context.Context, logResult *ws.LogResult, prog
 
 func (l *Listener) parseEvent(logResult *ws.LogResult, program solana.PublicKey) *models.Event {
 	signature := logResult.Value.Signature
-	
+
 	// Fetch full transaction to parse instructions
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	maxVersion := uint64(0)
 	tx, err := l.rpcClient.GetTransaction(
 		ctx,
@@ -175,7 +169,7 @@ func (l *Listener) parseEvent(logResult *ws.LogResult, program solana.PublicKey)
 			MaxSupportedTransactionVersion: &maxVersion,
 		},
 	)
-	
+
 	if err != nil {
 		// Only log non-rate-limit errors
 		if !contains(err.Error(), "429") && !contains(err.Error(), "Too many") {
@@ -186,11 +180,11 @@ func (l *Listener) parseEvent(logResult *ws.LogResult, program solana.PublicKey)
 		}
 		return nil
 	}
-	
+
 	if tx == nil || tx.Transaction == nil {
 		return nil
 	}
-	
+
 	// Parse transaction to extract mint addresses
 	parsed, err := tx.Transaction.GetTransaction()
 	if err != nil {
@@ -200,18 +194,15 @@ func (l *Listener) parseEvent(logResult *ws.LogResult, program solana.PublicKey)
 			Msg("Failed to parse transaction")
 		return nil
 	}
-	
+
 	// Use modular parsers to extract mint from transaction
-	mint, dexName, found := l.extractMintFromTransaction(parsed, program)
+	mint, _, found := l.extractMintFromTransaction(parsed, program)
 	if !found {
 		return nil
 	}
-	
-	logger.Info().
-		Str("mint", formatMint(mint)).
-		Str("dex", dexName).
-		Msg("🔔 New token detected")
-	
+
+	// Don't log individual detections - will be in summary stats
+
 	return &models.Event{
 		Type:      models.EventTypeNewPool,
 		Mint:      mint,
@@ -224,12 +215,12 @@ func (l *Listener) extractMintFromTransaction(tx *solana.Transaction, program so
 	// Iterate through all instructions in the transaction
 	for _, instruction := range tx.Message.Instructions {
 		programID := tx.Message.AccountKeys[instruction.ProgramIDIndex]
-		
+
 		// Skip if not the program we're monitoring
 		if !programID.Equals(program) {
 			continue
 		}
-		
+
 		// Get instruction accounts
 		accounts := make([]solana.PublicKey, 0, len(instruction.Accounts))
 		for _, accountIndex := range instruction.Accounts {
@@ -243,13 +234,13 @@ func (l *Listener) extractMintFromTransaction(tx *solana.Transaction, program so
 			}
 			accounts = append(accounts, tx.Message.AccountKeys[accountIndex])
 		}
-		
+
 		// Use parsers registry to extract mint
 		if mint, dexName, found := l.parsers.ParseInstruction(programID, accounts, instruction.Data); found {
 			return mint, dexName, true
 		}
 	}
-	
+
 	return "", "", false
 }
 
