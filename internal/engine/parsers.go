@@ -82,7 +82,11 @@ func (p *RaydiumParser) ParseTokenMint(accounts []solana.PublicKey, data []byte)
 	// [10] Pool pc token account
 	// ... more accounts
 	
-	if len(accounts) < 9 {
+	// Require at least 9 accounts for safe access
+	if len(accounts) <= 8 {
+		logger.Debug().
+			Int("accounts", len(accounts)).
+			Msg("Raydium: Not enough accounts")
 		return "", false
 	}
 	
@@ -151,7 +155,11 @@ func (p *OrcaParser) ParseTokenMint(accounts []solana.PublicKey, data []byte) (s
 	// [7] Fee tier
 	// ... more accounts
 	
-	if len(accounts) < 3 {
+	// Require at least 3 accounts for safe access
+	if len(accounts) <= 2 {
+		logger.Debug().
+			Int("accounts", len(accounts)).
+			Msg("Orca: Not enough accounts")
 		return "", false
 	}
 	
