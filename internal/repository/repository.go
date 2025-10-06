@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/speier/tokenscout/internal/models"
 )
 
@@ -32,6 +33,9 @@ type Repository interface {
 	IsWhitelisted(ctx context.Context, mint string) (bool, error)
 	AddToBlacklist(ctx context.Context, mint string) error
 	AddToWhitelist(ctx context.Context, mint string) error
+
+	// Strategy Analytics
+	GetStrategyStats(ctx context.Context) ([]models.StrategyStats, error)
 
 	// Utility
 	Close() error

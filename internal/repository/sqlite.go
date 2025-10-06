@@ -43,7 +43,8 @@ func (r *SQLiteRepository) runMigrations() error {
 		quantity TEXT NOT NULL,
 		price_usd REAL,
 		tx_sig TEXT,
-		status TEXT NOT NULL
+		status TEXT NOT NULL,
+		strategy TEXT DEFAULT ''
 	);
 
 	CREATE TABLE IF NOT EXISTS positions (
@@ -51,7 +52,8 @@ func (r *SQLiteRepository) runMigrations() error {
 		quantity TEXT NOT NULL,
 		avg_price_usd REAL,
 		opened_at INTEGER NOT NULL,
-		last_update_at INTEGER NOT NULL
+		last_update_at INTEGER NOT NULL,
+		strategy TEXT DEFAULT ''
 	);
 
 	CREATE TABLE IF NOT EXISTS events (
@@ -82,13 +84,51 @@ func (r *SQLiteRepository) runMigrations() error {
 	CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
 	`
 
-	_, err := r.db.Exec(schema)
-	return err
+	if _, err := r.db.Exec(schema); err != nil {
+		return err
+	}
+
+	// Run additional migrations for existing databases
+	return r.runAdditionalMigrations()
+}
+
+func (r *SQLiteRepository) runAdditionalMigrations() error {
+	// Check if strategy column exists in trades table
+	var hasStrategyInTrades int
+	err := r.db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('trades') WHERE name='strategy'`).Scan(&hasStrategyInTrades)
+	if err != nil {
+		return fmt.Errorf("failed to check trades table schema: %w", err)
+	}
+
+	// Add strategy column to trades if it doesn't exist
+	if hasStrategyInTrades == 0 {
+		_, err := r.db.Exec(`ALTER TABLE trades ADD COLUMN strategy TEXT DEFAULT '';`)
+		if err != nil {
+			return fmt.Errorf("failed to add strategy column to trades: %w", err)
+		}
+	}
+
+	// Check if strategy column exists in positions table
+	var hasStrategyInPositions int
+	err = r.db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('positions') WHERE name='strategy'`).Scan(&hasStrategyInPositions)
+	if err != nil {
+		return fmt.Errorf("failed to check positions table schema: %w", err)
+	}
+
+	// Add strategy column to positions if it doesn't exist
+	if hasStrategyInPositions == 0 {
+		_, err := r.db.Exec(`ALTER TABLE positions ADD COLUMN strategy TEXT DEFAULT '';`)
+		if err != nil {
+			return fmt.Errorf("failed to add strategy column to positions: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (r *SQLiteRepository) CreateTrade(ctx context.Context, trade *models.Trade) error {
-	query := `INSERT INTO trades (timestamp, side, mint, quantity, price_usd, tx_sig, status)
-			  VALUES (?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO trades (timestamp, side, mint, quantity, price_usd, tx_sig, status, strategy)
+			  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 	result, err := r.db.ExecContext(ctx, query,
 		trade.Timestamp.Unix(),
 		trade.Side,
@@ -97,6 +137,7 @@ func (r *SQLiteRepository) CreateTrade(ctx context.Context, trade *models.Trade)
 		trade.PriceUSD,
 		trade.TxSig,
 		trade.Status,
+		trade.Strategy,
 	)
 	if err != nil {
 		return err
@@ -110,7 +151,7 @@ func (r *SQLiteRepository) CreateTrade(ctx context.Context, trade *models.Trade)
 }
 
 func (r *SQLiteRepository) GetTrades(ctx context.Context, limit int) ([]models.Trade, error) {
-	query := `SELECT id, timestamp, side, mint, quantity, price_usd, tx_sig, status
+	query := `SELECT id, timestamp, side, mint, quantity, price_usd, tx_sig, status, COALESCE(strategy, '') as strategy
 			  FROM trades ORDER BY timestamp DESC LIMIT ?`
 	rows, err := r.db.QueryContext(ctx, query, limit)
 	if err != nil {
@@ -122,7 +163,7 @@ func (r *SQLiteRepository) GetTrades(ctx context.Context, limit int) ([]models.T
 	for rows.Next() {
 		var t models.Trade
 		var ts int64
-		err := rows.Scan(&t.ID, &ts, &t.Side, &t.Mint, &t.Quantity, &t.PriceUSD, &t.TxSig, &t.Status)
+		err := rows.Scan(&t.ID, &ts, &t.Side, &t.Mint, &t.Quantity, &t.PriceUSD, &t.TxSig, &t.Status, &t.Strategy)
 		if err != nil {
 			return nil, err
 		}
@@ -133,12 +174,12 @@ func (r *SQLiteRepository) GetTrades(ctx context.Context, limit int) ([]models.T
 }
 
 func (r *SQLiteRepository) GetTradeByID(ctx context.Context, id int64) (*models.Trade, error) {
-	query := `SELECT id, timestamp, side, mint, quantity, price_usd, tx_sig, status
+	query := `SELECT id, timestamp, side, mint, quantity, price_usd, tx_sig, status, COALESCE(strategy, '') as strategy
 			  FROM trades WHERE id = ?`
 	var t models.Trade
 	var ts int64
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&t.ID, &ts, &t.Side, &t.Mint, &t.Quantity, &t.PriceUSD, &t.TxSig, &t.Status,
+		&t.ID, &ts, &t.Side, &t.Mint, &t.Quantity, &t.PriceUSD, &t.TxSig, &t.Status, &t.Strategy,
 	)
 	if err != nil {
 		return nil, err
@@ -154,25 +195,26 @@ func (r *SQLiteRepository) UpdateTradeStatus(ctx context.Context, id int64, stat
 }
 
 func (r *SQLiteRepository) CreatePosition(ctx context.Context, position *models.Position) error {
-	query := `INSERT INTO positions (mint, quantity, avg_price_usd, opened_at, last_update_at)
-			  VALUES (?, ?, ?, ?, ?)`
+	query := `INSERT INTO positions (mint, quantity, avg_price_usd, opened_at, last_update_at, strategy)
+			  VALUES (?, ?, ?, ?, ?, ?)`
 	_, err := r.db.ExecContext(ctx, query,
 		position.Mint,
 		position.Quantity,
 		position.AvgPriceUSD,
 		position.OpenedAt.Unix(),
 		position.LastUpdateAt.Unix(),
+		position.Strategy,
 	)
 	return err
 }
 
 func (r *SQLiteRepository) GetPosition(ctx context.Context, mint string) (*models.Position, error) {
-	query := `SELECT mint, quantity, avg_price_usd, opened_at, last_update_at
+	query := `SELECT mint, quantity, avg_price_usd, opened_at, last_update_at, COALESCE(strategy, '') as strategy
 			  FROM positions WHERE mint = ?`
 	var p models.Position
 	var openedAt, lastUpdateAt int64
 	err := r.db.QueryRowContext(ctx, query, mint).Scan(
-		&p.Mint, &p.Quantity, &p.AvgPriceUSD, &openedAt, &lastUpdateAt,
+		&p.Mint, &p.Quantity, &p.AvgPriceUSD, &openedAt, &lastUpdateAt, &p.Strategy,
 	)
 	if err != nil {
 		return nil, err
@@ -183,7 +225,7 @@ func (r *SQLiteRepository) GetPosition(ctx context.Context, mint string) (*model
 }
 
 func (r *SQLiteRepository) GetAllPositions(ctx context.Context) ([]models.Position, error) {
-	query := `SELECT mint, quantity, avg_price_usd, opened_at, last_update_at FROM positions`
+	query := `SELECT mint, quantity, avg_price_usd, opened_at, last_update_at, COALESCE(strategy, '') as strategy FROM positions`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -194,7 +236,7 @@ func (r *SQLiteRepository) GetAllPositions(ctx context.Context) ([]models.Positi
 	for rows.Next() {
 		var p models.Position
 		var openedAt, lastUpdateAt int64
-		err := rows.Scan(&p.Mint, &p.Quantity, &p.AvgPriceUSD, &openedAt, &lastUpdateAt)
+		err := rows.Scan(&p.Mint, &p.Quantity, &p.AvgPriceUSD, &openedAt, &lastUpdateAt, &p.Strategy)
 		if err != nil {
 			return nil, err
 		}
@@ -305,6 +347,71 @@ func (r *SQLiteRepository) AddToWhitelist(ctx context.Context, mint string) erro
 	query := `INSERT OR IGNORE INTO whitelist (mint) VALUES (?)`
 	_, err := r.db.ExecContext(ctx, query, mint)
 	return err
+}
+
+func (r *SQLiteRepository) GetStrategyStats(ctx context.Context) ([]models.StrategyStats, error) {
+	// Query to aggregate trade statistics by strategy
+	query := `
+		SELECT 
+			COALESCE(strategy, 'custom') as strategy,
+			COUNT(*) as total_trades,
+			SUM(CASE WHEN side = 'BUY' THEN 1 ELSE 0 END) as buy_trades,
+			SUM(CASE WHEN side = 'SELL' THEN 1 ELSE 0 END) as sell_trades,
+			AVG(CASE WHEN side = 'BUY' THEN price_usd ELSE NULL END) as avg_entry_price,
+			SUM(CASE WHEN side = 'BUY' THEN price_usd * CAST(quantity AS REAL) ELSE 0 END) as total_volume,
+			SUM(CASE WHEN status = 'EXECUTED' THEN 1 ELSE 0 END) as executed_trades,
+			SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed_trades
+		FROM trades
+		GROUP BY strategy
+		ORDER BY total_trades DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var stats []models.StrategyStats
+	for rows.Next() {
+		var s models.StrategyStats
+		var avgEntryPrice sql.NullFloat64
+
+		err := rows.Scan(
+			&s.Strategy,
+			&s.TotalTrades,
+			&s.BuyTrades,
+			&s.SellTrades,
+			&avgEntryPrice,
+			&s.TotalVolume,
+			&s.ExecutedTrades,
+			&s.FailedTrades,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Handle NULL avg_entry_price
+		if avgEntryPrice.Valid {
+			s.AvgEntryPrice = avgEntryPrice.Float64
+		}
+
+		// Calculate success rate
+		if s.TotalTrades > 0 {
+			s.SuccessRate = (float64(s.ExecutedTrades) / float64(s.TotalTrades)) * 100
+		}
+
+		// Get open positions count for this strategy
+		posQuery := `SELECT COUNT(*) FROM positions WHERE COALESCE(strategy, 'custom') = ?`
+		err = r.db.QueryRowContext(ctx, posQuery, s.Strategy).Scan(&s.OpenPositions)
+		if err != nil {
+			return nil, err
+		}
+
+		stats = append(stats, s)
+	}
+
+	return stats, nil
 }
 
 func (r *SQLiteRepository) Close() error {

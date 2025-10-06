@@ -2,6 +2,7 @@ package strategies
 
 import (
 	"fmt"
+
 	"github.com/speier/tokenscout/internal/models"
 )
 
@@ -14,18 +15,18 @@ type Strategy struct {
 
 // Presets contains all built-in strategy presets
 var Presets = map[string]Strategy{
-	"snipe_flip":        SnipeFlipStrategy(),
-	"conservative":      ConservativeStrategy(),
-	"scalping":          ScalpingStrategy(),
-	"data_collection":   DataCollectionStrategy(),
-	"momentum_rider":    MomentumRiderStrategy(),
+	"snipe_flip":      SnipeFlipStrategy(),
+	"conservative":    ConservativeStrategy(),
+	"scalping":        ScalpingStrategy(),
+	"data_collection": DataCollectionStrategy(),
+	"momentum_rider":  MomentumRiderStrategy(),
 }
 
 // SnipeFlipStrategy: Catch early pumps, exit fast (3-5 min holds)
 // High risk/reward - small positions, high frequency
 func SnipeFlipStrategy() Strategy {
 	return Strategy{
-		Name: "snipe_flip",
+		Name:        "snipe_flip",
 		Description: "Snipe & Flip: Catch early pumps, exit fast before rugs (3-5 min holds)",
 		Config: models.Config{
 			Engine: models.EngineConfig{
@@ -35,10 +36,10 @@ func SnipeFlipStrategy() Strategy {
 			Trading: models.TradingConfig{
 				BaseMint:                 "SOL",
 				QuoteMint:                "USDC",
-				MaxSpendPerTrade:         0.2,    // Small positions
-				MaxOpenPositions:         5,      // High frequency
-				SlippageBps:              400,    // 4% for speed
-				PriorityFeeMicroLamports: 20000,  // Fast confirms
+				MaxSpendPerTrade:         0.2,   // Small positions
+				MaxOpenPositions:         5,     // High frequency
+				SlippageBps:              400,   // 4% for speed
+				PriorityFeeMicroLamports: 20000, // Fast confirms
 			},
 			Rules: models.RulesConfig{
 				MinLiquidityUSD:      3000,  // Need exit liquidity
@@ -61,7 +62,7 @@ func SnipeFlipStrategy() Strategy {
 // Lower risk - established tokens, bigger positions, lower frequency
 func ConservativeStrategy() Strategy {
 	return Strategy{
-		Name: "conservative",
+		Name:        "conservative",
 		Description: "Conservative: Safer entry with established tokens, longer holds (10-20 min)",
 		Config: models.Config{
 			Engine: models.EngineConfig{
@@ -71,10 +72,10 @@ func ConservativeStrategy() Strategy {
 			Trading: models.TradingConfig{
 				BaseMint:                 "SOL",
 				QuoteMint:                "USDC",
-				MaxSpendPerTrade:         0.5,    // Bigger positions
-				MaxOpenPositions:         3,      // Lower frequency
-				SlippageBps:              200,    // 2% slippage
-				PriorityFeeMicroLamports: 10000,  // Normal priority
+				MaxSpendPerTrade:         0.5,   // Bigger positions
+				MaxOpenPositions:         3,     // Lower frequency
+				SlippageBps:              200,   // 2% slippage
+				PriorityFeeMicroLamports: 10000, // Normal priority
 			},
 			Rules: models.RulesConfig{
 				MinLiquidityUSD:      10000, // Established pools
@@ -85,9 +86,9 @@ func ConservativeStrategy() Strategy {
 				AllowMintAuthority:   false,
 			},
 			Risk: models.RiskConfig{
-				StopLossPct:         10,   // Standard stop
-				TakeProfitPct:       25,   // Bigger gains
-				MaxTradeDurationSec: 900,  // 15 min max
+				StopLossPct:         10,  // Standard stop
+				TakeProfitPct:       25,  // Bigger gains
+				MaxTradeDurationSec: 900, // 15 min max
 			},
 		},
 	}
@@ -97,7 +98,7 @@ func ConservativeStrategy() Strategy {
 // Highest risk - catch micro pumps, exit immediately
 func ScalpingStrategy() Strategy {
 	return Strategy{
-		Name: "scalping",
+		Name:        "scalping",
 		Description: "Scalping: Ultra-fast micro-flips, immediate exits (30 sec - 2 min holds)",
 		Config: models.Config{
 			Engine: models.EngineConfig{
@@ -107,10 +108,10 @@ func ScalpingStrategy() Strategy {
 			Trading: models.TradingConfig{
 				BaseMint:                 "SOL",
 				QuoteMint:                "USDC",
-				MaxSpendPerTrade:         0.1,    // Tiny positions
-				MaxOpenPositions:         10,     // Very high frequency
-				SlippageBps:              500,    // 5% for speed
-				PriorityFeeMicroLamports: 50000,  // Highest priority
+				MaxSpendPerTrade:         0.1,   // Tiny positions
+				MaxOpenPositions:         10,    // Very high frequency
+				SlippageBps:              500,   // 5% for speed
+				PriorityFeeMicroLamports: 50000, // Highest priority
 			},
 			Rules: models.RulesConfig{
 				MinLiquidityUSD:      2000, // Lower threshold
@@ -121,9 +122,9 @@ func ScalpingStrategy() Strategy {
 				AllowMintAuthority:   false,
 			},
 			Risk: models.RiskConfig{
-				StopLossPct:         5,   // Very quick stop
-				TakeProfitPct:       10,  // Small quick gains
-				MaxTradeDurationSec: 90,  // 1.5 min max
+				StopLossPct:         5,  // Very quick stop
+				TakeProfitPct:       10, // Small quick gains
+				MaxTradeDurationSec: 90, // 1.5 min max
 			},
 		},
 	}
@@ -133,7 +134,7 @@ func ScalpingStrategy() Strategy {
 // Zero risk - tracks all tokens and their outcomes
 func DataCollectionStrategy() Strategy {
 	return Strategy{
-		Name: "data_collection",
+		Name:        "data_collection",
 		Description: "Data Collection: Observe and learn patterns, no actual trading",
 		Config: models.Config{
 			Engine: models.EngineConfig{
@@ -143,16 +144,16 @@ func DataCollectionStrategy() Strategy {
 			Trading: models.TradingConfig{
 				BaseMint:                 "SOL",
 				QuoteMint:                "USDC",
-				MaxSpendPerTrade:         0,      // No spending
-				MaxOpenPositions:         0,      // No trades
+				MaxSpendPerTrade:         0, // No spending
+				MaxOpenPositions:         0, // No trades
 				SlippageBps:              200,
 				PriorityFeeMicroLamports: 5000,
 			},
 			Rules: models.RulesConfig{
-				MinLiquidityUSD:      500,  // Log almost everything
-				MaxMintAgeSec:        600,  // < 10 min old
-				MinHolders:           1,    // Catch all
-				DevWalletMaxPct:      100,  // No filtering
+				MinLiquidityUSD:      500,   // Log almost everything
+				MaxMintAgeSec:        600,   // < 10 min old
+				MinHolders:           1,     // Catch all
+				DevWalletMaxPct:      100,   // No filtering
 				BlockFreezeAuthority: false, // Log scams too
 				AllowMintAuthority:   true,  // Log everything
 			},
@@ -169,7 +170,7 @@ func DataCollectionStrategy() Strategy {
 // Medium risk - enter early, hold for bigger gains
 func MomentumRiderStrategy() Strategy {
 	return Strategy{
-		Name: "momentum_rider",
+		Name:        "momentum_rider",
 		Description: "Momentum Rider: Enter early with volume, ride pumps for bigger gains (5-15 min)",
 		Config: models.Config{
 			Engine: models.EngineConfig{
@@ -179,16 +180,16 @@ func MomentumRiderStrategy() Strategy {
 			Trading: models.TradingConfig{
 				BaseMint:                 "SOL",
 				QuoteMint:                "USDC",
-				MaxSpendPerTrade:         0.3,    // Medium positions
-				MaxOpenPositions:         4,      // Medium frequency
-				SlippageBps:              300,    // 3% slippage
+				MaxSpendPerTrade:         0.3, // Medium positions
+				MaxOpenPositions:         4,   // Medium frequency
+				SlippageBps:              300, // 3% slippage
 				PriorityFeeMicroLamports: 15000,
 			},
 			Rules: models.RulesConfig{
-				MinLiquidityUSD:      5000,  // Good liquidity
-				MaxMintAgeSec:        600,   // < 10 min old
-				MinHolders:           10,    // Some early holders
-				DevWalletMaxPct:      30,    // Medium risk
+				MinLiquidityUSD:      5000, // Good liquidity
+				MaxMintAgeSec:        600,  // < 10 min old
+				MinHolders:           10,   // Some early holders
+				DevWalletMaxPct:      30,   // Medium risk
 				BlockFreezeAuthority: true,
 				AllowMintAuthority:   false,
 			},
@@ -212,11 +213,11 @@ func GetStrategy(name string) (Strategy, error) {
 
 // StrategyInfo holds display information for a strategy
 type StrategyInfo struct {
-	Name      string
-	HoldTime  string
-	Entry     string
-	Exit      string
-	Risk      string
+	Name     string
+	HoldTime string
+	Entry    string
+	Exit     string
+	Risk     string
 }
 
 // GetStrategyInfo returns detailed info for all strategies in table format
@@ -281,8 +282,8 @@ func ApplyStrategy(baseConfig *models.Config, strategyName string) (*models.Conf
 	config := strategy.Config
 
 	// Preserve some base config values that shouldn't be overridden
-	config.Solana = baseConfig.Solana       // Keep RPC/wallet settings
-	config.Listener = baseConfig.Listener   // Keep listener settings
+	config.Solana = baseConfig.Solana     // Keep RPC/wallet settings
+	config.Listener = baseConfig.Listener // Keep listener settings
 
 	return &config, nil
 }

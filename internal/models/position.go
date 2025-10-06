@@ -8,4 +8,5 @@ type Position struct {
 	AvgPriceUSD  float64   `json:"avg_price_usd"`
 	OpenedAt     time.Time `json:"opened_at"`
 	LastUpdateAt time.Time `json:"last_update_at"`
+	Strategy     string    `json:"strategy"` // Strategy name used for this position
 }

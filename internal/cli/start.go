@@ -34,7 +34,7 @@ var startCmd = &cobra.Command{
 			fmt.Println()
 			fmt.Printf("%-18s %-13s %-14s %-13s %-8s\n", "Strategy", "Hold Time", "Entry", "Exit", "Risk")
 			fmt.Println("-----------------------------------------------------------------------")
-			
+
 			for _, info := range strategies.GetStrategyInfo() {
 				fmt.Printf("%-18s %-13s %-14s %-13s %-8s\n",
 					info.Name,
@@ -43,7 +43,7 @@ var startCmd = &cobra.Command{
 					info.Exit,
 					info.Risk)
 			}
-			
+
 			fmt.Println()
 			fmt.Println("Detailed descriptions:")
 			for _, desc := range strategies.ListStrategies() {
@@ -59,7 +59,7 @@ var startCmd = &cobra.Command{
 
 		// Initialize logger
 		logger.Init(logLevel, true)
-		
+
 		cfg, err := config.Load(cfgFile)
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
@@ -70,17 +70,23 @@ var startCmd = &cobra.Command{
 			logger.Get().Info().
 				Str("strategy", strategyName).
 				Msg("📋 Applying strategy preset")
-			
+
 			cfg, err = strategies.ApplyStrategy(cfg, strategyName)
 			if err != nil {
 				return fmt.Errorf("failed to apply strategy: %w", err)
 			}
-			
+
+			// Set the strategy name in the config
+			cfg.Strategy = strategyName
+
 			// Log strategy details
 			strategy, _ := strategies.GetStrategy(strategyName)
 			logger.Get().Info().
 				Str("description", strategy.Description).
 				Msg("Strategy configuration loaded")
+		} else {
+			// No strategy specified, use "custom" as default
+			cfg.Strategy = "custom"
 		}
 
 		logger.Debug().

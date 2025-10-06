@@ -26,4 +26,5 @@ type Trade struct {
 	PriceUSD  float64     `json:"price_usd"`
 	TxSig     string      `json:"tx_sig"`
 	Status    TradeStatus `json:"status"`
+	Strategy  string      `json:"strategy"` // Strategy name used for this trade
 }
