@@ -17,8 +17,16 @@ solana:
 
 listener:
   enabled: true
-  mode: websocket  # "websocket" (default, free with rate limits) or "polling" (fallback)
+  mode: webhook  # "webhook" (recommended with Helius), "websocket", or "polling"
+  
+  # Webhook settings (when mode=webhook)
+  webhook_port: 8080
+  webhook_path: /webhook
+  webhook_secret: ""  # Optional: set in Helius webhook config for verification
+  
+  # WebSocket/Polling settings (when mode=websocket or polling)
   polling_interval_sec: 10  # How often to poll RPC (only used in polling mode)
+  
   # DEX programs to monitor for new token pools (90%+ of new tokens launch on these)
   programs:
     - "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"  # Raydium AMM (largest DEX on Solana)

@@ -49,10 +49,13 @@ type SolanaConfig struct {
 
 type ListenerConfig struct {
 	Enabled          bool     `yaml:"enabled"`
-	Mode             string   `yaml:"mode"` // "websocket" or "polling"
+	Mode             string   `yaml:"mode"` // "webhook", "websocket", or "polling"
 	PollingInterval  int      `yaml:"polling_interval_sec"` // For polling mode
 	Programs         []string `yaml:"programs"`
 	CoalesceWindowMs int      `yaml:"coalesce_window_ms"`
+	WebhookPort      int      `yaml:"webhook_port"`      // Port for webhook server
+	WebhookPath      string   `yaml:"webhook_path"`      // Path for webhook endpoint
+	WebhookSecret    string   `yaml:"webhook_secret"`    // Optional: verify webhook requests
 }
 
 type RiskConfig struct {
