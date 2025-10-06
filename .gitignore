@@ -1,0 +1,47 @@
+# Binaries
+tokenscout
+tokenscout-*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Config files (may contain sensitive data)
+config.yaml
+wallet.json
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Go
+*.exe
+*.test
+*.out
+Thumbs.db
