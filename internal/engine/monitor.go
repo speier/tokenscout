@@ -59,8 +59,6 @@ func (m *Monitor) checkPositions(ctx context.Context) error {
 		return nil
 	}
 
-	logger.Debug().Int("positions", len(positions)).Msg("Checking positions")
-
 	for _, pos := range positions {
 		// Check max trade duration first (always applies)
 		duration := time.Since(pos.OpenedAt)
@@ -69,9 +67,8 @@ func (m *Monitor) checkPositions(ctx context.Context) error {
 		if duration > maxDuration {
 			logger.Info().
 				Str("mint", pos.Mint).
-				Dur("duration", duration).
-				Dur("max_duration", maxDuration).
-				Msg("Position exceeded max duration, selling")
+				Dur("held", duration).
+				Msg("⏱ Max duration exceeded, selling")
 
 			if err := m.executor.ExecuteSell(ctx, pos.Mint, "max_duration_exceeded"); err != nil {
 				logger.Error().
@@ -84,17 +81,8 @@ func (m *Monitor) checkPositions(ctx context.Context) error {
 
 		// Check price-based exits (stop-loss, take-profit)
 		if err := m.checkPriceExits(ctx, &pos); err != nil {
-			logger.Debug().
-				Err(err).
-				Str("mint", pos.Mint).
-				Msg("Failed to check price exits")
 			continue
 		}
-
-		logger.Debug().
-			Str("mint", pos.Mint).
-			Dur("age", duration).
-			Msg("Position within limits")
 	}
 
 	return nil
@@ -124,23 +112,14 @@ func (m *Monitor) checkPriceExits(ctx context.Context, pos *models.Position) err
 	}
 
 	// Calculate PnL
-	pnl, pnlPct := solana.CalculatePnL(entryPrice, currentPrice, qty)
-
-	logger.Debug().
-		Str("mint", pos.Mint).
-		Float64("entry_price", entryPrice).
-		Float64("current_price", currentPrice).
-		Float64("pnl", pnl).
-		Float64("pnl_pct", pnlPct).
-		Msg("Price check")
+	_, pnlPct := solana.CalculatePnL(entryPrice, currentPrice, qty)
 
 	// Check take-profit
 	if solana.ShouldTakeProfit(entryPrice, currentPrice, m.config.Risk.TakeProfitPct) {
 		logger.Info().
 			Str("mint", pos.Mint).
-			Float64("pnl_pct", pnlPct).
-			Float64("target", m.config.Risk.TakeProfitPct).
-			Msg("Take-profit triggered, selling")
+			Float64("pnl", pnlPct).
+			Msg("📈 Take-profit triggered, selling")
 
 		if err := m.executor.ExecuteSell(ctx, pos.Mint, "take_profit"); err != nil {
 			logger.Error().
@@ -155,9 +134,8 @@ func (m *Monitor) checkPriceExits(ctx context.Context, pos *models.Position) err
 	if solana.ShouldStopLoss(entryPrice, currentPrice, m.config.Risk.StopLossPct) {
 		logger.Info().
 			Str("mint", pos.Mint).
-			Float64("pnl_pct", pnlPct).
-			Float64("target", -m.config.Risk.StopLossPct).
-			Msg("Stop-loss triggered, selling")
+			Float64("pnl", pnlPct).
+			Msg("📉 Stop-loss triggered, selling")
 
 		if err := m.executor.ExecuteSell(ctx, pos.Mint, "stop_loss"); err != nil {
 			logger.Error().

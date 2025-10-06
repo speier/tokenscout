@@ -67,7 +67,9 @@ func (l *Listener) connect(ctx context.Context) error {
 	}
 	defer client.Close()
 
-	logger.Info().Msg("WebSocket connected")
+	logger.Info().
+		Int("programs", len(l.programs)).
+		Msg("✓ WebSocket connected, subscribed to programs")
 
 	// Subscribe to logs for each program
 	for _, program := range l.programs {
@@ -78,10 +80,6 @@ func (l *Listener) connect(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to subscribe to logs for %s: %w", program, err)
 		}
-
-		logger.Info().
-			Str("program", program.String()).
-			Msg("Subscribed to program logs")
 
 		go l.handleSubscription(ctx, sub, program)
 	}
@@ -100,6 +98,10 @@ func (l *Listener) handleSubscription(ctx context.Context, sub *ws.LogSubscripti
 		default:
 			got, err := sub.Recv(ctx)
 			if err != nil {
+				// Ignore context canceled (normal on shutdown)
+				if ctx.Err() != nil {
+					return
+				}
 				logger.Error().
 					Err(err).
 					Str("program", program.String()).

@@ -31,11 +31,14 @@ listener:
   enabled: true
   mode: polling  # "polling" or "websocket"
   polling_interval_sec: 10  # Only for polling mode
+  # DEX programs to monitor (these catch 90%+ of new tokens)
   programs:
-    - "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"  # Raydium
-    - "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"  # Orca
+    - "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"  # Raydium AMM (largest DEX)
+    - "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"  # Orca Whirlpool (2nd largest)
   coalesce_window_ms: 200
 ```
+
+**Programs:** These are Solana DEX smart contract addresses. The bot monitors their logs for new token pool creation events. You can add more DEXes, but Raydium + Orca cover the vast majority of new launches.
 
 ### Trading
 ```yaml

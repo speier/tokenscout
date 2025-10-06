@@ -2,7 +2,11 @@ package solana
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
 )
 
 // PriceInfo represents token price information
@@ -61,26 +65,73 @@ func ShouldStopLoss(entryPrice, currentPrice, stopLossPct float64) bool {
 	return pnlPct <= -stopLossPct
 }
 
-// GetJupiterPrice fetches price from Jupiter Price API
+// JupiterPriceResponse represents Jupiter Price API response
+type JupiterPriceResponse struct {
+	Data map[string]struct {
+		ID        string  `json:"id"`
+		MintSymbol string `json:"mintSymbol"`
+		VsToken   string  `json:"vsToken"`
+		VsTokenSymbol string `json:"vsTokenSymbol"`
+		Price     float64 `json:"price"`
+	} `json:"data"`
+	TimeTaken float64 `json:"timeTaken"`
+}
+
+// GetPrice fetches price from Jupiter Price API
 func (j *JupiterClient) GetPrice(ctx context.Context, mint string) (float64, error) {
-	// Jupiter Price API: https://price.jup.ag/v4/price?ids=MINT
-	// TODO: Implement actual HTTP request
-	// For now, simulate with quote
+	// Try Jupiter Price API first
+	priceURL := fmt.Sprintf("https://price.jup.ag/v4/price?ids=%s", mint)
 	
-	// Get a small quote to estimate price
-	baseMint := "So11111111111111111111111111111111111111112" // SOL
+	req, err := http.NewRequestWithContext(ctx, "GET", priceURL, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		// Fallback to quote method
+		return j.getPriceViaQuote(ctx, mint)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return j.getPriceViaQuote(ctx, mint)
+	}
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return j.getPriceViaQuote(ctx, mint)
+	}
+	
+	var priceResp JupiterPriceResponse
+	if err := json.Unmarshal(body, &priceResp); err != nil {
+		return j.getPriceViaQuote(ctx, mint)
+	}
+	
+	if data, ok := priceResp.Data[mint]; ok {
+		// Price is in USD already
+		return data.Price, nil
+	}
+	
+	// Fallback to quote
+	return j.getPriceViaQuote(ctx, mint)
+}
+
+// getPriceViaQuote estimates price using Jupiter quote (fallback)
+func (j *JupiterClient) getPriceViaQuote(ctx context.Context, mint string) (float64, error) {
+	baseMint := "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" // USDC
 	
 	quote, err := j.GetQuote(ctx, QuoteRequest{
 		InputMint:   mint,
 		OutputMint:  baseMint,
-		Amount:      1_000_000, // 1 token (assuming 6 decimals)
+		Amount:      1_000_000, // 1 token (6 decimals)
 		SlippageBps: 100,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to get quote: %w", err)
 	}
 	
-	// Parse amounts to calculate price
 	var inAmount, outAmount uint64
 	fmt.Sscanf(quote.InAmount, "%d", &inAmount)
 	fmt.Sscanf(quote.OutAmount, "%d", &outAmount)
@@ -89,13 +140,7 @@ func (j *JupiterClient) GetPrice(ctx context.Context, mint string) (float64, err
 		return 0, fmt.Errorf("invalid quote amounts")
 	}
 	
-	// Price in SOL
-	priceSOL := float64(outAmount) / float64(inAmount)
-	
-	// TODO: Convert SOL to USD (would need SOL/USD price)
-	// For now assume $100 per SOL
-	priceUSD := priceSOL * 100
-	
+	priceUSD := float64(outAmount) / float64(inAmount)
 	return priceUSD, nil
 }
 
@@ -113,16 +158,53 @@ func ParsePoolReserves(data []byte) (reserve0, reserve1 uint64, err error) {
 	return 0, 0, fmt.Errorf("not implemented")
 }
 
-// GetSOLPrice fetches current SOL/USD price
+// GetSOLPrice fetches current SOL/USD price from Jupiter
 func GetSOLPrice(ctx context.Context) (float64, error) {
-	// TODO: Fetch from price oracle or Jupiter
-	// For now return approximate value
+	priceURL := "https://price.jup.ag/v4/price?ids=So11111111111111111111111111111111111111112"
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", priceURL, nil)
+	if err != nil {
+		return 100.0, fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		// Return approximate fallback
+		return 100.0, nil
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return 100.0, nil
+	}
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 100.0, nil
+	}
+	
+	var priceResp JupiterPriceResponse
+	if err := json.Unmarshal(body, &priceResp); err != nil {
+		return 100.0, nil
+	}
+	
+	if data, ok := priceResp.Data["So11111111111111111111111111111111111111112"]; ok {
+		return data.Price, nil
+	}
+	
 	return 100.0, nil
 }
 
-// ConvertSOLToUSD converts SOL amount to USD
+// ConvertSOLToUSD converts SOL amount to USD using current price
 func ConvertSOLToUSD(solAmount float64) float64 {
-	solPrice, _ := GetSOLPrice(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	solPrice, err := GetSOLPrice(ctx)
+	if err != nil {
+		solPrice = 100.0 // Fallback
+	}
 	return solAmount * solPrice
 }
 

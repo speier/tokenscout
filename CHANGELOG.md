@@ -1,5 +1,37 @@
 # Changelog
 
+## Phase 3.1 - Price & Age Features (2025-10-06)
+
+### Added
+- **Jupiter Price API integration**
+  - Real HTTP requests to Jupiter Price API
+  - Returns USD prices directly
+  - Fallback to quote-based estimation if API fails
+  
+- **SOL/USD price fetching**
+  - Real-time SOL price from Jupiter
+  - Used in PnL calculations and conversions
+  - Fallback to $100 if API unavailable
+  
+- **Token age verification**
+  - Fetches first transaction timestamp
+  - Calculates age in seconds
+  - Rule engine checks against max_mint_age_sec
+  - Rejects tokens older than configured threshold
+
+### Improved
+- Price tracking more accurate with direct API calls
+- PnL calculations use real-time SOL prices
+- Better error handling with fallbacks
+
+### Configuration
+```yaml
+rules:
+  max_mint_age_sec: 7200  # Reject tokens older than 2 hours
+```
+
+---
+
 ## Phase 3 - Token Validation & Execution (2025-10-06)
 
 ### Added

@@ -77,7 +77,7 @@ func (e *engine) Start(ctx context.Context) error {
 
 	logger.Info().
 		Str("mode", string(e.config.Engine.Mode)).
-		Int("max_positions", e.config.Engine.MaxPositions).
+		Int("max_positions", e.config.Trading.MaxOpenPositions).
 		Msg("Trading engine started")
 
 	// Initialize executor and monitor

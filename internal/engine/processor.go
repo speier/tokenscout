@@ -73,10 +73,14 @@ func (p *Processor) Start(ctx context.Context) error {
 }
 
 func (p *Processor) processEvent(ctx context.Context, event *models.Event) error {
+	shortMint := event.Mint
+	if len(event.Mint) > 8 {
+		shortMint = event.Mint[:4] + ".." + event.Mint[len(event.Mint)-4:]
+	}
+
 	logger.Info().
-		Str("type", string(event.Type)).
-		Str("mint", event.Mint).
-		Msg("Processing event")
+		Str("mint", shortMint).
+		Msg("→ Evaluating token")
 
 	// Evaluate rules
 	ruleEngine := NewRuleEngine(p.engine.config, p.engine.repo, p.engine.config.Solana.RPCURL)
@@ -87,16 +91,11 @@ func (p *Processor) processEvent(ctx context.Context, event *models.Event) error
 
 	if !decision.Allow {
 		logger.Info().
-			Str("mint", event.Mint).
-			Strs("reasons", decision.Reasons).
-			Msg("Token rejected by rules")
+			Str("mint", shortMint).
+			Str("reason", decision.Reasons[0]).
+			Msg("✗ Rejected")
 		return nil
 	}
-
-	// Token passed rules - execute buy
-	logger.Info().
-		Str("mint", event.Mint).
-		Msg("Token passed rule evaluation, executing buy")
 
 	if err := p.executor.ExecuteBuy(ctx, event.Mint, "rules_passed"); err != nil {
 		logger.Error().

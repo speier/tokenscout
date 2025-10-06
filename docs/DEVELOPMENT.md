@@ -34,8 +34,8 @@
   - ✅ Check mint authority
   - ✅ Count holders
   - ✅ Analyze dev wallet concentration
+  - ✅ Check token age (via first transaction timestamp)
   - ⚠️ Check liquidity (TODO - requires DEX pool query)
-  - ⚠️ Check token age (TODO - needs creation timestamp)
   - ⚠️ Honeypot detection (TODO - sell simulation)
 
 - **Execution Engine**
@@ -48,7 +48,8 @@
 - **Position Monitoring**
   - ✅ Time-based exit monitoring
   - ✅ Automatic position closure after max duration
-  - ✅ Price tracking via Jupiter quotes
+  - ✅ Price tracking via Jupiter Price API (with quote fallback)
+  - ✅ Real-time SOL/USD price fetching
   - ✅ PnL calculation (profit/loss percentage)
   - ✅ Stop-loss monitoring (triggers on -10% loss)
   - ✅ Take-profit monitoring (triggers on +10% gain)
@@ -57,8 +58,8 @@
 
 ### Live Trading Integration
 - [ ] Implement actual Jupiter swap execution (currently dry-run only)
-- [ ] Add Jupiter Price API HTTP integration (currently using quotes)
-- [ ] Add DEX pool liquidity checking
+- [ ] Add DEX pool liquidity checking (min_liquidity_usd rule)
+- [ ] Add honeypot detection (simulate sell before buying)
 
 ## TODO 📋
 

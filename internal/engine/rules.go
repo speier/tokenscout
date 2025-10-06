@@ -56,7 +56,6 @@ func (r *RuleEngine) Evaluate(ctx context.Context, event *models.Event) (*Decisi
 	// Fetch token info
 	tokenInfo, err := solana.GetTokenInfo(ctx, r.rpcClient, event.Mint)
 	if err != nil {
-		logger.Debug().Err(err).Str("mint", event.Mint).Msg("Failed to fetch token info")
 		decision.Allow = false
 		decision.Reasons = append(decision.Reasons, "failed to fetch token info")
 		return decision, nil
@@ -65,49 +64,55 @@ func (r *RuleEngine) Evaluate(ctx context.Context, event *models.Event) (*Decisi
 	// Check freeze authority
 	if r.config.Rules.BlockFreezeAuthority && tokenInfo.HasFreezeAuthority {
 		decision.Allow = false
-		decision.Reasons = append(decision.Reasons, "token has freeze authority")
+		decision.Reasons = append(decision.Reasons, "has freeze authority")
 		return decision, nil
 	}
 
 	// Check mint authority
 	if !r.config.Rules.AllowMintAuthority && tokenInfo.HasMintAuthority {
 		decision.Allow = false
-		decision.Reasons = append(decision.Reasons, "token has mint authority")
+		decision.Reasons = append(decision.Reasons, "has mint authority")
 		return decision, nil
 	}
 
 	// Check holder count and distribution
 	holders, err := solana.GetTokenHolders(ctx, r.rpcClient, event.Mint)
 	if err != nil {
-		logger.Debug().Err(err).Str("mint", event.Mint).Msg("Failed to fetch holders")
-	} else {
-		holderCount, topHolderPct, _ := solana.AnalyzeHolderDistribution(holders)
-		
-		// Check minimum holders
-		if holderCount < r.config.Rules.MinHolders {
+		decision.Allow = false
+		decision.Reasons = append(decision.Reasons, "failed to fetch holders")
+		return decision, nil
+	}
+	
+	holderCount, topHolderPct, _ := solana.AnalyzeHolderDistribution(holders)
+	
+	// Check minimum holders
+	if holderCount < r.config.Rules.MinHolders {
+		decision.Allow = false
+		decision.Reasons = append(decision.Reasons, 
+			fmt.Sprintf("holders: %d < %d", holderCount, r.config.Rules.MinHolders))
+		return decision, nil
+	}
+
+	// Check dev wallet concentration
+	if topHolderPct > r.config.Rules.DevWalletMaxPct {
+		decision.Allow = false
+		decision.Reasons = append(decision.Reasons, 
+			fmt.Sprintf("top holder: %.1f%% > %.1f%%", topHolderPct, r.config.Rules.DevWalletMaxPct))
+		return decision, nil
+	}
+
+	// Check token age
+	if r.config.Rules.MaxMintAgeSec > 0 {
+		tooOld, ageSeconds, err := solana.IsTokenTooOld(ctx, r.rpcClient, event.Mint, int64(r.config.Rules.MaxMintAgeSec))
+		if err == nil && tooOld {
 			decision.Allow = false
 			decision.Reasons = append(decision.Reasons, 
-				fmt.Sprintf("insufficient holders: %d < %d", holderCount, r.config.Rules.MinHolders))
+				fmt.Sprintf("too old: %ds", ageSeconds))
 			return decision, nil
 		}
-
-		// Check dev wallet concentration
-		if topHolderPct > r.config.Rules.DevWalletMaxPct {
-			decision.Allow = false
-			decision.Reasons = append(decision.Reasons, 
-				fmt.Sprintf("top holder too concentrated: %.2f%% > %.2f%%", topHolderPct, r.config.Rules.DevWalletMaxPct))
-			return decision, nil
-		}
-
-		logger.Debug().
-			Str("mint", event.Mint).
-			Int("holders", holderCount).
-			Float64("top_holder_pct", topHolderPct).
-			Msg("Holder analysis complete")
 	}
 
 	// TODO: Check liquidity amount (min_liquidity_usd) - requires DEX pool query
-	// TODO: Check token age (max_mint_age_sec) - requires creation timestamp
 	// TODO: Simulate sell to detect honeypot
 
 	logger.Debug().

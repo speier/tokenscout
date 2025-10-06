@@ -34,6 +34,9 @@ func Load(configPath string) (*models.Config, error) {
 func setDefaults(v *viper.Viper) {
 	v.SetDefault("engine.mode", "dry_run")
 	v.SetDefault("engine.max_positions", 3)
+	
+	// Set trading defaults (must come before engine.max_positions is read elsewhere)
+	v.SetDefault("trading.max_open_positions", 3)
 
 	v.SetDefault("solana.rpc_url", "https://api.mainnet-beta.solana.com")
 	v.SetDefault("solana.ws_url", "wss://api.mainnet-beta.solana.com")
@@ -44,9 +47,10 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("listener.enabled", true)
 	v.SetDefault("listener.mode", "websocket") // "websocket" or "polling"
 	v.SetDefault("listener.polling_interval_sec", 10) // Poll every 10 seconds
+	// DEX programs to monitor for new token pools (90%+ of new tokens launch here)
 	v.SetDefault("listener.programs", []string{
-		"675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8", // Raydium AMM
-		"9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP", // Orca Whirlpool
+		"675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8", // Raydium AMM (largest DEX)
+		"9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP", // Orca Whirlpool (2nd largest DEX)
 	})
 	v.SetDefault("listener.coalesce_window_ms", 200)
 

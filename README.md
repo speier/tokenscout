@@ -2,10 +2,24 @@
 
 Solana trading bot that monitors new tokens and trades automatically based on configurable rules.
 
+## Installation
+
+### From Release (Recommended)
+Download the latest binary from [Releases](https://github.com/speier/tokenscout/releases).
+
+```bash
+# macOS / Linux
+tar -xzf tokenscout_*.tar.gz
+./tokenscout init
+
+# Windows - Extract .zip file, then:
+tokenscout.exe init
+```
+
 ## Quick Start
 
 ```bash
-# Run directly (no build needed)
+# Run directly from source (no build needed)
 go run . init
 
 # Create wallet
@@ -14,7 +28,7 @@ go run . wallet new
 # Start in dry-run mode (safe)
 go run . start --dry-run
 
-# Or build first
+# Or build binary first
 go build
 ./tokenscout start --dry-run
 ```
@@ -69,6 +83,9 @@ risk:
 
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - [Configuration](docs/CONFIGURATION.md) - All config options explained
+- [Testing](docs/TESTING.md) - How to test dry-run mode
+- [Logging](docs/LOGGING.md) - Log levels and output examples
+- [Releasing](docs/RELEASING.md) - How releases are created
 - [Development](docs/DEVELOPMENT.md) - Status and roadmap
 
 ## Safety
