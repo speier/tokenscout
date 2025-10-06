@@ -67,7 +67,7 @@ cp /path/to/wallet.json wallet.json
 ./tokenscout start --strategy snipe_flip --dry-run
 
 # List available strategies
-./tokenscout start --list-strategies
+./tokenscout strategies list
 
 # View open positions
 ./tokenscout positions
@@ -96,6 +96,11 @@ TokenScout includes 5 built-in strategies:
 | `scalping` | 30s-2min | Ultra early | +10%/-5% | Highest |
 | `momentum_rider` | 5-15 min | Early volume | +40%/-15% | Medium |
 | `data_collection` | Observe only | All tokens | Track only | Zero |
+
+**List all available strategies:**
+```bash
+./tokenscout strategies list
+```
 
 **Using preset strategies:**
 ```bash

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/speier/tokenscout/internal/repository"
+	"github.com/speier/tokenscout/internal/strategies"
 	"github.com/spf13/cobra"
 )
 
@@ -12,6 +13,41 @@ var strategiesCmd = &cobra.Command{
 	Use:   "strategies",
 	Short: "Strategy management and analytics",
 	Long:  `Commands for managing and comparing trading strategies.`,
+}
+
+var strategiesListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List available strategy presets",
+	Long:  `Display all built-in strategy presets with their characteristics.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("\n═══════════════════════════════════════════════════════════════════════")
+		fmt.Println("📋 Available Strategy Presets")
+		fmt.Println("═══════════════════════════════════════════════════════════════════════")
+		fmt.Println()
+		fmt.Printf("%-18s %-13s %-14s %-13s %-8s\n", "Strategy", "Hold Time", "Entry", "Exit", "Risk")
+		fmt.Println("-----------------------------------------------------------------------")
+
+		for _, info := range strategies.GetStrategyInfo() {
+			fmt.Printf("%-18s %-13s %-14s %-13s %-8s\n",
+				info.Name,
+				info.HoldTime,
+				info.Entry,
+				info.Exit,
+				info.Risk)
+		}
+
+		fmt.Println()
+		fmt.Println("Detailed descriptions:")
+		for _, desc := range strategies.ListStrategies() {
+			fmt.Println(desc)
+		}
+		fmt.Println("\n═══════════════════════════════════════════════════════════════════════")
+		fmt.Println("Usage:")
+		fmt.Println("  tokenscout start --strategy <name>")
+		fmt.Println("  tokenscout start --strategy snipe_flip --dry-run")
+		fmt.Println("═══════════════════════════════════════════════════════════════════════\n")
+		return nil
+	},
 }
 
 var strategiesCompareCmd = &cobra.Command{
@@ -75,6 +111,7 @@ var strategiesCompareCmd = &cobra.Command{
 }
 
 func init() {
+	strategiesCmd.AddCommand(strategiesListCmd)
 	strategiesCmd.AddCommand(strategiesCompareCmd)
 	rootCmd.AddCommand(strategiesCmd)
 }

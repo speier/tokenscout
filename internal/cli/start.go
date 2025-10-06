@@ -20,7 +20,6 @@ var (
 	dryRun         bool
 	strategyName   string
 	strategyConfig string
-	listStrategies bool
 )
 
 var startCmd = &cobra.Command{
@@ -28,37 +27,6 @@ var startCmd = &cobra.Command{
 	Short: "Start the trading bot",
 	Long:  `Start the trading engine to monitor blockchain events and execute trades.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// If --list-strategies, show available strategies and exit
-		if listStrategies {
-			fmt.Println("\n═══════════════════════════════════════════════════════════════════════")
-			fmt.Println("📋 Available Strategy Presets")
-			fmt.Println("═══════════════════════════════════════════════════════════════════════")
-			fmt.Println()
-			fmt.Printf("%-18s %-13s %-14s %-13s %-8s\n", "Strategy", "Hold Time", "Entry", "Exit", "Risk")
-			fmt.Println("-----------------------------------------------------------------------")
-
-			for _, info := range strategies.GetStrategyInfo() {
-				fmt.Printf("%-18s %-13s %-14s %-13s %-8s\n",
-					info.Name,
-					info.HoldTime,
-					info.Entry,
-					info.Exit,
-					info.Risk)
-			}
-
-			fmt.Println()
-			fmt.Println("Detailed descriptions:")
-			for _, desc := range strategies.ListStrategies() {
-				fmt.Println(desc)
-			}
-			fmt.Println("\n═══════════════════════════════════════════════════════════════════════")
-			fmt.Println("Usage:")
-			fmt.Println("  tokenscout start --strategy <name>")
-			fmt.Println("  tokenscout start --strategy snipe_flip --dry-run")
-			fmt.Println("═══════════════════════════════════════════════════════════════════════\n")
-			return nil
-		}
-
 		// Initialize logger
 		logger.Init(logLevel, true)
 
@@ -154,6 +122,5 @@ func init() {
 	startCmd.Flags().BoolVar(&dryRun, "dry-run", false, "run without executing trades")
 	startCmd.Flags().StringVar(&strategyName, "strategy", "", "strategy preset (snipe_flip, conservative, scalping, data_collection, momentum_rider)")
 	startCmd.Flags().StringVar(&strategyConfig, "strategy-config", "", "path to strategy config file with overrides (e.g., strategies/fast_flip.yaml)")
-	startCmd.Flags().BoolVar(&listStrategies, "list-strategies", false, "list all available strategy presets")
 	rootCmd.AddCommand(startCmd)
 }

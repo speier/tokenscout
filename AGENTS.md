@@ -127,8 +127,8 @@ go build -o tokenscout .
 # Test (no data needed)
 go run . strategies compare
 
-# List strategies
-go run . start --list-strategies
+# List available strategies
+go run . strategies list
 ```
 
 ## Best Practices
