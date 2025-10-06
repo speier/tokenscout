@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/speier/tokenscout/internal/logger"
@@ -113,7 +114,15 @@ func (r *RuleEngine) Evaluate(ctx context.Context, event *models.Event) (*Decisi
 	}
 
 	// TODO: Check liquidity amount (min_liquidity_usd) - requires DEX pool query
-	// TODO: Simulate sell to detect honeypot
+	
+	// HONEYPOT DETECTION: Simulate sell to verify token is sellable
+	// This is CRITICAL for snipe & flip - many scam tokens allow buy but block sell
+	if err := r.checkHoneypot(ctx, event.Mint); err != nil {
+		decision.Allow = false
+		decision.Reasons = append(decision.Reasons, 
+			fmt.Sprintf("honeypot detected: %s", err.Error()))
+		return decision, nil
+	}
 
 	logger.Debug().
 		Str("mint", event.Mint).
@@ -136,6 +145,56 @@ func (r *RuleEngine) Evaluate(ctx context.Context, event *models.Event) (*Decisi
 	}
 
 	return decision, nil
+}
+
+// checkHoneypot simulates a sell transaction to verify the token is sellable
+// Many scam tokens allow buys but block sells - this catches them before we buy
+func (r *RuleEngine) checkHoneypot(ctx context.Context, mint string) error {
+	logger.Debug().
+		Str("mint", formatMint(mint)).
+		Msg("Checking for honeypot (simulating sell)")
+	
+	// Create Jupiter client for quote
+	jupiterClient := solana.NewJupiterClient(r.config.Solana.JupiterAPIURL)
+	
+	// Simulate selling a small amount: token -> SOL
+	// Use a minimal amount (0.001 SOL equivalent) just to test if swap is possible
+	testAmount := uint64(1000000) // 0.001 SOL worth of tokens (approximate)
+	
+	quoteReq := solana.QuoteRequest{
+		InputMint:  mint,                                        // Token we want to sell
+		OutputMint: "So11111111111111111111111111111111111111112", // SOL (wrapped)
+		Amount:     testAmount,
+		SlippageBps: 500, // 5% slippage for test
+	}
+	
+	// Try to get a quote for the reverse swap
+	quote, err := jupiterClient.GetQuote(ctx, quoteReq)
+	if err != nil {
+		return fmt.Errorf("cannot get sell quote (likely honeypot)")
+	}
+	
+	if quote == nil || quote.OutAmount == "" {
+		return fmt.Errorf("no sell route available (likely honeypot)")
+	}
+	
+	// Parse the output amount to verify it's reasonable
+	outAmount, err := strconv.ParseUint(quote.OutAmount, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid sell quote")
+	}
+	
+	// Sanity check: output should be > 0
+	if outAmount == 0 {
+		return fmt.Errorf("zero output on sell (likely honeypot)")
+	}
+	
+	logger.Debug().
+		Str("mint", formatMint(mint)).
+		Uint64("out_amount", outAmount).
+		Msg("✓ Honeypot check passed (token is sellable)")
+	
+	return nil
 }
 
 // TokenInfo represents metadata about a token

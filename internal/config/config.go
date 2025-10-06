@@ -56,22 +56,23 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("trading.base_mint", "SOL")
 	v.SetDefault("trading.quote_mint", "USDC")
-	v.SetDefault("trading.max_spend_per_trade", 0.5)
-	v.SetDefault("trading.max_open_positions", 3)
-	v.SetDefault("trading.slippage_bps", 150)
-	v.SetDefault("trading.priority_fee_microlamports", 5000)
+	v.SetDefault("trading.max_spend_per_trade", 0.2)       // Smaller positions for high frequency
+	v.SetDefault("trading.max_open_positions", 5)          // More concurrent trades
+	v.SetDefault("trading.slippage_bps", 400)              // Higher slippage for speed
+	v.SetDefault("trading.priority_fee_microlamports", 20000) // Higher priority for faster confirms
 
-	// Rules tuned for catching brand new tokens
-	v.SetDefault("rules.min_liquidity_usd", 1000)     // Lower threshold for new tokens
-	v.SetDefault("rules.max_mint_age_sec", 300)       // Only tokens < 5 minutes old
-	v.SetDefault("rules.min_holders", 5)              // Very new tokens have few holders
-	v.SetDefault("rules.dev_wallet_max_pct", 50)      // Allow higher for brand new tokens
-	v.SetDefault("rules.block_freeze_authority", true)
-	v.SetDefault("rules.allow_mint_authority", false)
+	// Rules tuned for snipe & flip strategy: catch early, exit fast
+	v.SetDefault("rules.min_liquidity_usd", 3000)      // Need enough liquidity to exit
+	v.SetDefault("rules.max_mint_age_sec", 300)        // Only tokens < 5 minutes old
+	v.SetDefault("rules.min_holders", 3)               // Very early entry
+	v.SetDefault("rules.dev_wallet_max_pct", 40)       // Safer distribution
+	v.SetDefault("rules.block_freeze_authority", true) // CRITICAL: reject if token can be frozen
+	v.SetDefault("rules.allow_mint_authority", false)  // CRITICAL: reject if supply can be minted
 
-	v.SetDefault("risk.stop_loss_pct", 10)
-	v.SetDefault("risk.take_profit_pct", 10)
-	v.SetDefault("risk.max_trade_duration_sec", 600)
+	// Risk settings for snipe & flip: quick exits
+	v.SetDefault("risk.stop_loss_pct", 8)              // Quick exit on loss
+	v.SetDefault("risk.take_profit_pct", 18)           // Take profits fast (don't be greedy)
+	v.SetDefault("risk.max_trade_duration_sec", 240)   // 4 min max hold (exit before rugs)
 }
 
 func CreateDefault(configPath string) error {
