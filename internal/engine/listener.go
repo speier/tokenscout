@@ -231,9 +231,17 @@ func (l *Listener) extractMintFromTransaction(tx *solana.Transaction, program so
 		}
 		
 		// Get instruction accounts
-		accounts := make([]solana.PublicKey, len(instruction.Accounts))
-		for i, accountIndex := range instruction.Accounts {
-			accounts[i] = tx.Message.AccountKeys[accountIndex]
+		accounts := make([]solana.PublicKey, 0, len(instruction.Accounts))
+		for _, accountIndex := range instruction.Accounts {
+			// Bounds check: ensure accountIndex is valid
+			if int(accountIndex) >= len(tx.Message.AccountKeys) {
+				logger.Debug().
+					Int("account_index", int(accountIndex)).
+					Int("total_keys", len(tx.Message.AccountKeys)).
+					Msg("Account index out of bounds, skipping")
+				continue
+			}
+			accounts = append(accounts, tx.Message.AccountKeys[accountIndex])
 		}
 		
 		// Use parsers registry to extract mint
