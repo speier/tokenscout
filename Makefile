@@ -1,16 +1,14 @@
 .PHONY: build run test clean init release bump-patch bump-minor bump-major
 
-# Read version from VERSION file
-VERSION := v$(shell cat VERSION 2>/dev/null || echo "0.0.0")
-
-# Build flags
-LDFLAGS := -X main.version=$(VERSION)
-LDFLAGS += -X main.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-LDFLAGS += -X main.date=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+# Read version from VERSION file (can be overridden: make build VERSION=v1.2.3)
+VERSION ?= v$(shell cat VERSION 2>/dev/null || echo "0.0.0")
 
 # Build the binary
 build:
-	go build -ldflags "$(LDFLAGS)" -o tokenscout .
+	@COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
+	echo "Building $(VERSION) (commit: $$COMMIT)..."; \
+	go build -ldflags "-X main.version=$(VERSION) -X main.commit=$$COMMIT -X main.date=$$DATE" -o tokenscout .
 
 # Run in development
 run:
@@ -48,10 +46,13 @@ lint:
 
 # Build for all platforms
 build-all:
-	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o tokenscout-linux-amd64 .
-	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o tokenscout-darwin-amd64 .
-	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o tokenscout-darwin-arm64 .
-	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o tokenscout-windows-amd64.exe .
+	@COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
+	LDFLAGS="-X main.version=$(VERSION) -X main.commit=$$COMMIT -X main.date=$$DATE"; \
+	GOOS=linux GOARCH=amd64 go build -ldflags "$$LDFLAGS" -o tokenscout-linux-amd64 .; \
+	GOOS=darwin GOARCH=amd64 go build -ldflags "$$LDFLAGS" -o tokenscout-darwin-amd64 .; \
+	GOOS=darwin GOARCH=arm64 go build -ldflags "$$LDFLAGS" -o tokenscout-darwin-arm64 .; \
+	GOOS=windows GOARCH=amd64 go build -ldflags "$$LDFLAGS" -o tokenscout-windows-amd64.exe .
 
 # Bump version (patch by default, use: make bump-minor or make bump-major)
 bump-patch:
@@ -82,15 +83,18 @@ bump-major:
 	@echo "Version bumped: $$(cat VERSION)"
 
 # Create and push a release tag (auto-increments patch version)
-release: bump-patch test build
-	@echo "Creating release $(VERSION)"
-	@echo "Validation passed ✓"
-	git add VERSION
-	git commit -m "chore: bump version to $(VERSION)"
-	git tag -a $(VERSION) -m "Release $(VERSION)"
-	git push origin main
-	git push origin $(VERSION)
-	@echo "✓ Release $(VERSION) pushed. GitHub Actions will build and publish."
+release: bump-patch
+	@$(MAKE) test
+	@NEW_VERSION=v$$(cat VERSION); \
+	$(MAKE) build VERSION=$$NEW_VERSION; \
+	echo "Creating release $$NEW_VERSION"; \
+	echo "Validation passed ✓"; \
+	git add VERSION; \
+	git commit -m "chore: bump version to $$NEW_VERSION"; \
+	git tag -a $$NEW_VERSION -m "Release $$NEW_VERSION"; \
+	git push origin main; \
+	git push origin $$NEW_VERSION; \
+	echo "✓ Release $$NEW_VERSION pushed. GitHub Actions will build and publish."
 
 # Create release without auto-bump (manual version control)
 release-manual: test build
