@@ -54,7 +54,7 @@ func NewProcessor(eventCh <-chan *models.Event, eng *engine, executor *Executor)
 }
 
 func (p *Processor) Start(ctx context.Context) error {
-	logger.Info().Msg("⚙️  Starting event processor")
+	logger.Info().Msg("⚙️ Starting event processor")
 
 	// Track recently seen mints to prevent duplicate processing
 	// Use longer window to prevent re-processing same pools
