@@ -91,20 +91,21 @@ func (e *engine) Start(ctx context.Context) error {
 	if err != nil {
 		logger.Info().Msg("💰 No wallet loaded - will simulate trades only")
 		logger.Debug().Err(err).Msg("Wallet load details")
-	} else {
-		solanaClient := solana.NewClient(e.config.Solana.RPCURL, wallet)
-		jupiterClient := solana.NewJupiterClient(e.config.Solana.JupiterAPIURL)
-		
-		e.executor = NewExecutor(e.config, e.repo, solanaClient, jupiterClient)
-		e.monitor = NewMonitor(e.config, e.repo, e.executor, jupiterClient)
-		
-		// Start position monitor
-		go func() {
-			if err := e.monitor.Start(ctx); err != nil {
-				logger.Error().Err(err).Msg("Monitor error")
-			}
-		}()
 	}
+	
+	// Create executor and monitor even without wallet (for dry-run mode)
+	solanaClient := solana.NewClient(e.config.Solana.RPCURL, wallet) // wallet can be nil
+	jupiterClient := solana.NewJupiterClient(e.config.Solana.JupiterAPIURL)
+	
+	e.executor = NewExecutor(e.config, e.repo, solanaClient, jupiterClient)
+	e.monitor = NewMonitor(e.config, e.repo, e.executor, jupiterClient)
+	
+	// Start position monitor
+	go func() {
+		if err := e.monitor.Start(ctx); err != nil {
+			logger.Error().Err(err).Msg("Monitor error")
+		}
+	}()
 
 	// Start blockchain listener if enabled
 	if e.config.Listener.Enabled {
