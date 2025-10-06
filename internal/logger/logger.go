@@ -26,12 +26,17 @@ func Init(level string, pretty bool) {
 		logLevel = zerolog.InfoLevel
 	}
 
-	Logger = zerolog.New(output).
+	// Only show caller (file:line) for debug level
+	loggerContext := zerolog.New(output).
 		Level(logLevel).
 		With().
-		Timestamp().
-		Caller().
-		Logger()
+		Timestamp()
+	
+	if logLevel == zerolog.DebugLevel {
+		loggerContext = loggerContext.Caller()
+	}
+	
+	Logger = loggerContext.Logger()
 
 	log.Logger = Logger
 }
