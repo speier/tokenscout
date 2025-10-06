@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/speier/tokenscout/internal/logger"
@@ -74,22 +75,83 @@ func (e *Executor) ExecuteBuy(ctx context.Context, mint string, reason string) e
 		return fmt.Errorf("failed to create trade record: %w", err)
 	}
 
-	// In dry-run mode, just simulate
+	// Get real Jupiter quote (both dry-run and live modes)
+	jupiterClient := e.jupiterClient
+	
+	// Convert SOL amount to lamports
+	solAmount := uint64(e.config.Trading.MaxSpendPerTrade * 1e9)
+	
+	quoteReq := solana.QuoteRequest{
+		InputMint:        "So11111111111111111111111111111111111111112", // SOL
+		OutputMint:       mint,
+		Amount:           solAmount,
+		SlippageBps:      100, // 1% slippage
+		OnlyDirectRoutes: false,
+	}
+	
+	logger.Debug().
+		Str("mint", mint).
+		Uint64("sol_amount", solAmount).
+		Msg("Fetching Jupiter quote")
+	
+	quote, err := jupiterClient.GetQuote(ctx, quoteReq)
+	if err != nil {
+		logger.Error().Err(err).Str("mint", mint).Msg("Failed to get Jupiter quote")
+		if err := e.repo.UpdateTradeStatus(ctx, trade.ID, models.TradeStatusFailed, err.Error()); err != nil {
+			return fmt.Errorf("failed to update trade: %w", err)
+		}
+		return fmt.Errorf("failed to get quote: %w", err)
+	}
+	
+	// Parse amounts to calculate real price
+	inAmountFloat, err := strconv.ParseFloat(quote.InAmount, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse input amount: %w", err)
+	}
+	outAmountFloat, err := strconv.ParseFloat(quote.OutAmount, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse output amount: %w", err)
+	}
+	
+	// Calculate token quantity (accounting for decimals)
+	tokenQuantity := outAmountFloat / 1e9 // Assuming 9 decimals, should fetch from token mint
+	
+	// Get SOL/USD price to calculate token price in USD
+	solPrice, err := solana.GetSOLPrice(ctx)
+	if err != nil {
+		logger.Warn().Err(err).Msg("Failed to get SOL price, using $100 fallback")
+		solPrice = 100.0
+	}
+	
+	// Calculate real token price in USD
+	solSpent := inAmountFloat / 1e9
+	usdSpent := solSpent * solPrice
+	tokenPriceUSD := usdSpent / tokenQuantity
+	
+	logger.Info().
+		Str("mint", mint).
+		Float64("sol_spent", solSpent).
+		Float64("tokens_received", tokenQuantity).
+		Float64("token_price_usd", tokenPriceUSD).
+		Float64("price_impact", parsePriceImpact(quote.PriceImpactPct)).
+		Msg("Real quote received from Jupiter")
+	
+	// In dry-run mode, don't execute but use real prices
 	if e.config.Engine.Mode == models.ModeDryRun {
 		logger.Info().
 			Str("mint", mint).
-			Msg("DRY RUN: Would execute buy via Jupiter")
+			Msg("DRY RUN: Would execute buy via Jupiter (using real quote)")
 		
 		// Update trade as executed (simulated)
 		if err := e.repo.UpdateTradeStatus(ctx, trade.ID, models.TradeStatusExecuted, "DRY_RUN"); err != nil {
 			return fmt.Errorf("failed to update trade: %w", err)
 		}
 
-		// Create simulated position
+		// Create position with REAL price from Jupiter quote
 		position := &models.Position{
 			Mint:         mint,
-			Quantity:     trade.Quantity,
-			AvgPriceUSD:  100.0, // Simulated price
+			Quantity:     fmt.Sprintf("%.9f", tokenQuantity),
+			AvgPriceUSD:  tokenPriceUSD, // REAL price from quote
 			OpenedAt:     time.Now(),
 			LastUpdateAt: time.Now(),
 		}
@@ -100,18 +162,39 @@ func (e *Executor) ExecuteBuy(ctx context.Context, mint string, reason string) e
 
 		logger.Info().
 			Str("mint", mint).
-			Msg("DRY RUN: Position opened (simulated)")
+			Float64("token_price_usd", tokenPriceUSD).
+			Float64("tokens", tokenQuantity).
+			Msg("DRY RUN: Position opened with real quote price")
 		
 		return nil
 	}
 
-	// Live mode - execute actual trade
-	// TODO: Get actual quote and execute swap
+	// Live mode - execute actual trade with the quote we already have
 	logger.Info().
 		Str("mint", mint).
-		Msg("LIVE: Would execute real buy via Jupiter (not yet implemented)")
-
+		Msg("LIVE: Executing real buy via Jupiter")
+	
+	// TODO: Execute swap transaction
+	// swapReq := solana.SwapRequest{
+	// 	QuoteResponse:    *quote,
+	// 	UserPublicKey:    wallet.PublicKey().String(),
+	// 	WrapAndUnwrapSol: true,
+	// }
+	// 
+	// swapResp, err := jupiterClient.GetSwap(ctx, swapReq)
+	// ... sign and send transaction ...
+	
+	logger.Warn().Msg("LIVE: Swap execution not yet implemented")
 	return fmt.Errorf("live trading not yet implemented")
+}
+
+// Helper to parse price impact percentage
+func parsePriceImpact(impact string) float64 {
+	val, err := strconv.ParseFloat(impact, 64)
+	if err != nil {
+		return 0.0
+	}
+	return val
 }
 
 // ExecuteSell closes a position by selling a token
@@ -141,12 +224,69 @@ func (e *Executor) ExecuteSell(ctx context.Context, mint string, reason string) 
 		return fmt.Errorf("failed to create trade record: %w", err)
 	}
 
-	// In dry-run mode, just simulate
+	// Get real Jupiter quote for selling
+	jupiterClient := e.jupiterClient
+	
+	// Parse token quantity
+	tokenAmount, err := strconv.ParseFloat(position.Quantity, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse quantity: %w", err)
+	}
+	
+	// Convert to token units (assuming 9 decimals)
+	tokenUnits := uint64(tokenAmount * 1e9)
+	
+	quoteReq := solana.QuoteRequest{
+		InputMint:        mint,
+		OutputMint:       "So11111111111111111111111111111111111111112", // SOL
+		Amount:           tokenUnits,
+		SlippageBps:      100, // 1% slippage
+		OnlyDirectRoutes: false,
+	}
+	
+	logger.Debug().
+		Str("mint", mint).
+		Uint64("token_amount", tokenUnits).
+		Msg("Fetching Jupiter sell quote")
+	
+	quote, err := jupiterClient.GetQuote(ctx, quoteReq)
+	if err != nil {
+		logger.Error().Err(err).Str("mint", mint).Msg("Failed to get Jupiter sell quote")
+		if err := e.repo.UpdateTradeStatus(ctx, trade.ID, models.TradeStatusFailed, err.Error()); err != nil {
+			return fmt.Errorf("failed to update trade: %w", err)
+		}
+		return fmt.Errorf("failed to get sell quote: %w", err)
+	}
+	
+	// Calculate SOL received
+	outAmountFloat, err := strconv.ParseFloat(quote.OutAmount, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse output amount: %w", err)
+	}
+	solReceived := outAmountFloat / 1e9
+	
+	// Get SOL price
+	solPrice, err := solana.GetSOLPrice(ctx)
+	if err != nil {
+		logger.Warn().Err(err).Msg("Failed to get SOL price, using $100 fallback")
+		solPrice = 100.0
+	}
+	
+	usdReceived := solReceived * solPrice
+	
+	logger.Info().
+		Str("mint", mint).
+		Float64("sol_received", solReceived).
+		Float64("usd_received", usdReceived).
+		Float64("price_impact", parsePriceImpact(quote.PriceImpactPct)).
+		Msg("Real sell quote received from Jupiter")
+
+	// In dry-run mode, don't execute but use real prices
 	if e.config.Engine.Mode == models.ModeDryRun {
 		logger.Info().
 			Str("mint", mint).
 			Str("reason", reason).
-			Msg("DRY RUN: Would execute sell via Jupiter")
+			Msg("DRY RUN: Would execute sell via Jupiter (using real quote)")
 		
 		// Update trade as executed (simulated)
 		if err := e.repo.UpdateTradeStatus(ctx, trade.ID, models.TradeStatusExecuted, "DRY_RUN"); err != nil {
@@ -160,7 +300,8 @@ func (e *Executor) ExecuteSell(ctx context.Context, mint string, reason string) 
 
 		logger.Info().
 			Str("mint", mint).
-			Msg("DRY RUN: Position closed (simulated)")
+			Float64("usd_received", usdReceived).
+			Msg("DRY RUN: Position closed with real sell price")
 		
 		return nil
 	}
@@ -168,8 +309,10 @@ func (e *Executor) ExecuteSell(ctx context.Context, mint string, reason string) 
 	// Live mode - execute actual trade
 	logger.Info().
 		Str("mint", mint).
-		Msg("LIVE: Would execute real sell via Jupiter (not yet implemented)")
-
+		Msg("LIVE: Executing real sell via Jupiter")
+	
+	// TODO: Execute swap transaction
+	logger.Warn().Msg("LIVE: Sell swap execution not yet implemented")
 	return fmt.Errorf("live trading not yet implemented")
 }
 

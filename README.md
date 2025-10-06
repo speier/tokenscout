@@ -89,6 +89,7 @@ risk:
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - [Configuration](docs/CONFIGURATION.md) - All config options explained
 - [Testing](docs/TESTING.md) - How to test dry-run mode
+- [Dry-Run Mode](docs/DRY_RUN.md) - Realistic simulations with real Jupiter quotes
 - [Logging](docs/LOGGING.md) - Log levels and output examples
 - [Makefile](docs/MAKEFILE.md) - All make commands reference
 - [Version Info](docs/VERSION.md) - Version and build information

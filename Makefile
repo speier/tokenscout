@@ -1,7 +1,7 @@
-.PHONY: build run test clean init release
+.PHONY: build run test clean init release bump-patch bump-minor bump-major
 
-# Version for releases (override with: make release VERSION=v1.0.0)
-VERSION ?= v0.1.0
+# Read version from VERSION file
+VERSION := v$(shell cat VERSION 2>/dev/null || echo "0.0.0")
 
 # Build flags
 LDFLAGS := -X main.version=$(VERSION)
@@ -53,8 +53,47 @@ build-all:
 	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o tokenscout-darwin-arm64 .
 	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o tokenscout-windows-amd64.exe .
 
-# Create and push a release tag (validates first)
-release: test build
+# Bump version (patch by default, use: make bump-minor or make bump-major)
+bump-patch:
+	@echo "Bumping patch version..."
+	@current=$$(cat VERSION); \
+	major=$$(echo $$current | cut -d. -f1); \
+	minor=$$(echo $$current | cut -d. -f2); \
+	patch=$$(echo $$current | cut -d. -f3); \
+	patch=$$((patch + 1)); \
+	echo "$$major.$$minor.$$patch" > VERSION
+	@echo "Version bumped: $$(cat VERSION)"
+
+bump-minor:
+	@echo "Bumping minor version..."
+	@current=$$(cat VERSION); \
+	major=$$(echo $$current | cut -d. -f1); \
+	minor=$$(echo $$current | cut -d. -f2); \
+	minor=$$((minor + 1)); \
+	echo "$$major.$$minor.0" > VERSION
+	@echo "Version bumped: $$(cat VERSION)"
+
+bump-major:
+	@echo "Bumping major version..."
+	@current=$$(cat VERSION); \
+	major=$$(echo $$current | cut -d. -f1); \
+	major=$$((major + 1)); \
+	echo "$$major.0.0" > VERSION
+	@echo "Version bumped: $$(cat VERSION)"
+
+# Create and push a release tag (auto-increments minor version)
+release: bump-minor test build
+	@echo "Creating release $(VERSION)"
+	@echo "Validation passed ✓"
+	git add VERSION
+	git commit -m "chore: bump version to $(VERSION)"
+	git tag -a $(VERSION) -m "Release $(VERSION)"
+	git push origin main
+	git push origin $(VERSION)
+	@echo "✓ Release $(VERSION) pushed. GitHub Actions will build and publish."
+
+# Create release without auto-bump (manual version control)
+release-manual: test build
 	@echo "Creating release $(VERSION)"
 	@echo "Validation passed ✓"
 	git tag -a $(VERSION) -m "Release $(VERSION)"

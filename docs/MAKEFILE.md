@@ -53,9 +53,17 @@ make build
 ## Release Management
 
 ```bash
-# Create and push release tag (validates first, then triggers GitHub Actions)
-make release VERSION=v1.0.0
-# This runs: test → build → tag → push
+# Create and push release (auto-increments minor version)
+make release
+# This runs: bump-minor → test → build → commit → tag → push
+
+# Manual version control:
+make bump-patch    # 0.1.0 → 0.1.1
+make bump-minor    # 0.1.0 → 0.2.0
+make bump-major    # 0.1.0 → 1.0.0
+
+# Release without auto-bump (uses current VERSION)
+make release-manual
 
 # Test release locally (doesn't push to GitHub)
 make release-test
@@ -67,11 +75,9 @@ make release-check
 make build-all
 ```
 
-**Note:** `make release` has dependencies:
-- `test` - Ensures tests pass
-- `build` - Validates code compiles
-
-This prevents pushing broken tags.
+**Version File:** Version is stored in `VERSION` file (e.g., `0.1.0`)  
+**Auto-increment:** `make release` automatically bumps minor version  
+**Manual control:** Use `bump-*` targets or edit VERSION file directly
 
 ## Dependencies
 

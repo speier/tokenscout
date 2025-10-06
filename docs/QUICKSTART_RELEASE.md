@@ -5,16 +5,18 @@ Ultra-simple guide to creating a release.
 ## The One-Command Release
 
 ```bash
-make release VERSION=v1.0.0
+make release
 ```
 
 That's it! This will:
-1. Run tests (validates code)
-2. Build locally (ensures it compiles)
-3. Create git tag `v1.0.0`
-4. Push tag to GitHub
-5. GitHub Actions builds for all platforms
-6. Creates GitHub Release with binaries
+1. Auto-increment minor version (0.1.0 → 0.2.0)
+2. Run tests (validates code)
+3. Build locally (ensures it compiles)
+4. Commit VERSION file
+5. Create git tag (e.g., `v0.2.0`)
+6. Push to GitHub
+7. GitHub Actions builds for all platforms
+8. Creates GitHub Release with binaries
 
 ## Step-by-Step Example
 
@@ -23,14 +25,20 @@ That's it! This will:
 git status
 # Should show: "nothing to commit, working tree clean"
 
-# 2. Create release
-make release VERSION=v1.0.0
+# 2. Create release (auto-increments version)
+make release
 
 # Output:
-# Creating release v1.0.0
-# ... git tag -a v1.0.0 -m "Release v1.0.0" ...
-# ... git push origin v1.0.0 ...
-# ✓ Release v1.0.0 pushed. GitHub Actions will build and publish.
+# Bumping minor version...
+# Version bumped: 0.2.0
+# ... runs tests ...
+# ... builds binary ...
+# Creating release v0.2.0
+# ... git commit -m "chore: bump version to v0.2.0" ...
+# ... git tag -a v0.2.0 -m "Release v0.2.0" ...
+# ... git push origin main ...
+# ... git push origin v0.2.0 ...
+# ✓ Release v0.2.0 pushed. GitHub Actions will build and publish.
 
 # 3. Watch GitHub Actions (optional)
 # Visit: https://github.com/speier/tokenscout/actions
@@ -50,26 +58,31 @@ make release-test
 ls -lh dist/
 ```
 
-## Version Numbers
+## Version Control
 
-Follow semantic versioning:
+Version is stored in the `VERSION` file and auto-increments:
 
 ```bash
-# Initial release
-make release VERSION=v1.0.0
+# Default: auto-increment minor version (0.1.0 → 0.2.0)
+make release
 
-# Bug fix
-make release VERSION=v1.0.1
+# Manual version bumps:
+make bump-patch    # 0.1.0 → 0.1.1 (bug fixes)
+make bump-minor    # 0.1.0 → 0.2.0 (new features)
+make bump-major    # 0.1.0 → 1.0.0 (breaking changes)
 
-# New feature
-make release VERSION=v1.1.0
+# Then release manually (doesn't auto-bump)
+make release-manual
 
-# Breaking change
-make release VERSION=v2.0.0
-
-# Pre-release
-make release VERSION=v1.0.0-beta.1
+# Or edit VERSION file directly
+echo "1.0.0" > VERSION
+make release-manual
 ```
+
+**Semantic Versioning:**
+- **Patch** (0.0.1): Bug fixes, no new features
+- **Minor** (0.1.0): New features, backward compatible
+- **Major** (1.0.0): Breaking changes
 
 ## What Gets Released
 
