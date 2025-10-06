@@ -138,3 +138,4 @@ go run . start --list-strategies
 3. **User-First**: Think from user perspective, not developer
 4. **Test**: Always verify builds and migrations work
 5. **Cleanup**: Remove temporary files after completion
+6. **No Root Clutter**: No random .md files in root (use docs/ if needed)

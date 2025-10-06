@@ -1,0 +1,26 @@
+# Fast Flip Conservative Strategy
+# Balanced risk/reward: Wait for validation, catch momentum, exit fast
+#
+# Strategy:
+# - Waits 10 min to avoid ultra-early rugs
+# - Requires $5k liquidity for clean exits
+# - Quick 15% profit targets
+# - Tight 7% stop losses
+#
+# Usage: tokenscout start --dry-run --strategy-config strategies/fast_flip_conservative.yaml
+
+rules:
+  min_liquidity_usd: 5000      # Established liquidity
+  max_mint_age_sec: 600        # 10 min old (after initial rug risk)
+  min_holders: 20              # Some validation
+  dev_wallet_max_pct: 30       # Stricter than default
+
+risk:
+  take_profit_pct: 15          # Quick 15% gains
+  stop_loss_pct: 7             # Tight protection
+  max_trade_duration_sec: 300  # 5 min max hold
+
+trading:
+  max_spend_per_trade: 0.3     # Medium position
+  max_open_positions: 3        # Focused trades
+  slippage_bps: 300            # 3% slippage

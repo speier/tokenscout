@@ -10,6 +10,7 @@ import (
 	"github.com/speier/tokenscout/internal/config"
 	"github.com/speier/tokenscout/internal/engine"
 	"github.com/speier/tokenscout/internal/logger"
+	"github.com/speier/tokenscout/internal/models"
 	"github.com/speier/tokenscout/internal/repository"
 	"github.com/speier/tokenscout/internal/strategies"
 	"github.com/spf13/cobra"
@@ -18,6 +19,7 @@ import (
 var (
 	dryRun         bool
 	strategyName   string
+	strategyConfig string
 	listStrategies bool
 )
 
@@ -60,12 +62,33 @@ var startCmd = &cobra.Command{
 		// Initialize logger
 		logger.Init(logLevel, true)
 
-		cfg, err := config.Load(cfgFile)
-		if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
+		// Load config with optional strategy config override
+		var cfg *models.Config
+		var err error
+
+		if strategyConfig != "" {
+			logger.Get().Info().
+				Str("strategy_config", strategyConfig).
+				Msg("📄 Loading strategy config overrides")
+
+			cfg, err = config.LoadWithOverrides(cfgFile, strategyConfig)
+			if err != nil {
+				return fmt.Errorf("failed to load config with overrides: %w", err)
+			}
+
+			// Set strategy name from filename if not explicitly set
+			if strategyName == "" && cfg.Strategy == "" {
+				// Extract strategy name from file path (e.g., strategies/fast_flip.yaml -> fast_flip)
+				cfg.Strategy = "custom"
+			}
+		} else {
+			cfg, err = config.Load(cfgFile)
+			if err != nil {
+				return fmt.Errorf("failed to load config: %w", err)
+			}
 		}
 
-		// Apply strategy preset if specified
+		// Apply strategy preset if specified (takes precedence over config file)
 		if strategyName != "" {
 			logger.Get().Info().
 				Str("strategy", strategyName).
@@ -130,6 +153,7 @@ var startCmd = &cobra.Command{
 func init() {
 	startCmd.Flags().BoolVar(&dryRun, "dry-run", false, "run without executing trades")
 	startCmd.Flags().StringVar(&strategyName, "strategy", "", "strategy preset (snipe_flip, conservative, scalping, data_collection, momentum_rider)")
+	startCmd.Flags().StringVar(&strategyConfig, "strategy-config", "", "path to strategy config file with overrides (e.g., strategies/fast_flip.yaml)")
 	startCmd.Flags().BoolVar(&listStrategies, "list-strategies", false, "list all available strategy presets")
 	rootCmd.AddCommand(startCmd)
 }

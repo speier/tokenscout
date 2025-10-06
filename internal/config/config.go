@@ -60,6 +60,78 @@ func Load(configPath string) (*models.Config, error) {
 	return &cfg, nil
 }
 
+// LoadWithOverrides loads base config and applies overrides from strategy config file
+func LoadWithOverrides(configPath, strategyConfigPath string) (*models.Config, error) {
+	// Load base config
+	cfg, err := Load(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// If no strategy config provided, return base config
+	if strategyConfigPath == "" {
+		return cfg, nil
+	}
+
+	// Load strategy overrides
+	if _, err := os.Stat(strategyConfigPath); err != nil {
+		return nil, fmt.Errorf("strategy config not found: %s", strategyConfigPath)
+	}
+
+	v := viper.New()
+	v.SetConfigFile(strategyConfigPath)
+	v.SetConfigType("yaml")
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read strategy config: %w", err)
+	}
+
+	// Apply overrides (only override fields that are set in strategy config)
+	if v.IsSet("trading") {
+		if v.IsSet("trading.max_spend_per_trade") {
+			cfg.Trading.MaxSpendPerTrade = v.GetFloat64("trading.max_spend_per_trade")
+		}
+		if v.IsSet("trading.max_open_positions") {
+			cfg.Trading.MaxOpenPositions = v.GetInt("trading.max_open_positions")
+		}
+		if v.IsSet("trading.slippage_bps") {
+			cfg.Trading.SlippageBps = v.GetInt("trading.slippage_bps")
+		}
+		if v.IsSet("trading.priority_fee_microlamports") {
+			cfg.Trading.PriorityFeeMicroLamports = v.GetInt64("trading.priority_fee_microlamports")
+		}
+	}
+
+	if v.IsSet("rules") {
+		if v.IsSet("rules.min_liquidity_usd") {
+			cfg.Rules.MinLiquidityUSD = v.GetFloat64("rules.min_liquidity_usd")
+		}
+		if v.IsSet("rules.max_mint_age_sec") {
+			cfg.Rules.MaxMintAgeSec = v.GetInt("rules.max_mint_age_sec")
+		}
+		if v.IsSet("rules.min_holders") {
+			cfg.Rules.MinHolders = v.GetInt("rules.min_holders")
+		}
+		if v.IsSet("rules.dev_wallet_max_pct") {
+			cfg.Rules.DevWalletMaxPct = v.GetFloat64("rules.dev_wallet_max_pct")
+		}
+	}
+
+	if v.IsSet("risk") {
+		if v.IsSet("risk.stop_loss_pct") {
+			cfg.Risk.StopLossPct = v.GetFloat64("risk.stop_loss_pct")
+		}
+		if v.IsSet("risk.take_profit_pct") {
+			cfg.Risk.TakeProfitPct = v.GetFloat64("risk.take_profit_pct")
+		}
+		if v.IsSet("risk.max_trade_duration_sec") {
+			cfg.Risk.MaxTradeDurationSec = v.GetInt("risk.max_trade_duration_sec")
+		}
+	}
+
+	return cfg, nil
+}
+
 // injectAPIKey replaces ${HELIUS_API_KEY} placeholder in URL with actual key
 func injectAPIKey(url, apiKey string) string {
 	return strings.ReplaceAll(url, "${HELIUS_API_KEY}", apiKey)

@@ -97,7 +97,29 @@ TokenScout includes 5 built-in strategies:
 | `momentum_rider` | 5-15 min | Early volume | +40%/-15% | Medium |
 | `data_collection` | Observe only | All tokens | Track only | Zero |
 
-Run with: `./tokenscout start --strategy <name>`
+**Using preset strategies:**
+```bash
+./tokenscout start --strategy <name>
+./tokenscout start --strategy snipe_flip --dry-run
+```
+
+**Using custom strategy configs:**
+```bash
+./tokenscout start --strategy-config strategies/fast_flip_conservative.yaml --dry-run
+```
+
+Create your own in `strategies/my_strategy.yaml`:
+```yaml
+rules:
+  min_liquidity_usd: 5000
+  max_mint_age_sec: 600
+  
+risk:
+  take_profit_pct: 15
+  stop_loss_pct: 7
+```
+
+Strategy configs only override specified values - everything else uses `config.yaml` defaults.
 
 ### Configuration
 
