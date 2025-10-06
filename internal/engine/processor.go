@@ -26,11 +26,12 @@ func NewProcessor(eventCh <-chan *models.Event, eng *engine, executor *Executor)
 func (p *Processor) Start(ctx context.Context) error {
 	logger.Info().Msg("Starting event processor")
 
-	// Coalescing window to deduplicate events
-	coalesceWindow := time.Duration(p.engine.config.Listener.CoalesceWindowMs) * time.Millisecond
+	// Track recently seen mints to prevent duplicate processing
+	// Use longer window to prevent re-processing same pools
 	seenMints := make(map[string]time.Time)
+	dedupeWindow := 5 * time.Minute // Don't reprocess same mint for 5 minutes
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(1 * time.Minute) // Cleanup every minute
 	defer ticker.Stop()
 
 	for {
@@ -40,16 +41,18 @@ func (p *Processor) Start(ctx context.Context) error {
 			return nil
 
 		case event := <-p.eventCh:
-			// Deduplicate events within coalesce window
+			// Deduplicate based on mint address
 			if lastSeen, exists := seenMints[event.Mint]; exists {
-				if time.Since(lastSeen) < coalesceWindow {
+				if time.Since(lastSeen) < dedupeWindow {
 					logger.Debug().
-						Str("mint", event.Mint).
-						Msg("Ignoring duplicate event within coalesce window")
+						Str("mint", formatMint(event.Mint)).
+						Dur("since_last", time.Since(lastSeen)).
+						Msg("Skipping duplicate event (already processed)")
 					continue
 				}
 			}
 
+			// Mark as seen
 			seenMints[event.Mint] = time.Now()
 
 			// Process the event
@@ -61,11 +64,14 @@ func (p *Processor) Start(ctx context.Context) error {
 			}
 
 		case <-ticker.C:
-			// Clean up old entries from seenMints
-			cutoff := time.Now().Add(-coalesceWindow * 10)
+			// Clean up old entries from seenMints (older than 10 minutes)
+			cutoff := time.Now().Add(-10 * time.Minute)
 			for mint, t := range seenMints {
 				if t.Before(cutoff) {
 					delete(seenMints, mint)
+					logger.Debug().
+						Str("mint", formatMint(mint)).
+						Msg("Removed from deduplication cache")
 				}
 			}
 		}
