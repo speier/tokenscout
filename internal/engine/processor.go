@@ -35,7 +35,6 @@ type Processor struct {
 type processorStats struct {
 	tokensDetected   int
 	tokensRejected   int
-	tokensWatching   int
 	tokensBought     int
 	rejectionReasons map[string]int
 	lastReset        time.Time
@@ -138,17 +137,15 @@ func (p *Processor) processEvent(ctx context.Context, event *models.Event) error
 	if !decision.Allow {
 		reason := decision.Reasons[0]
 
-		// Track rejection stats
-		p.statsMux.Lock()
-		p.stats.tokensRejected++
-		p.stats.rejectionReasons[reason]++
-		p.statsMux.Unlock()
-
 		// Add to watch list if rejection is temporary (might change)
 		if p.isWatchableRejection(reason) {
 			p.addToWatchList(event, reason)
+			// Don't count as rejected yet - we're giving it a chance
+		} else {
+			// Only count as rejected if we're NOT watching it
 			p.statsMux.Lock()
-			p.stats.tokensWatching++
+			p.stats.tokensRejected++
+			p.stats.rejectionReasons[reason]++
 			p.statsMux.Unlock()
 		}
 
@@ -307,6 +304,11 @@ func (p *Processor) cleanupWatchList() {
 		logger.Debug().
 			Int("count", len(expired)).
 			Msg("Cleaned up expired tokens from watch list")
+
+		// Count expired tokens as rejected now (they didn't pass rules)
+		p.statsMux.Lock()
+		p.stats.tokensRejected += len(expired)
+		p.statsMux.Unlock()
 	}
 
 	for _, mint := range expired {
