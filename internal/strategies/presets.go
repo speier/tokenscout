@@ -210,6 +210,56 @@ func GetStrategy(name string) (Strategy, error) {
 	return strategy, nil
 }
 
+// StrategyInfo holds display information for a strategy
+type StrategyInfo struct {
+	Name      string
+	HoldTime  string
+	Entry     string
+	Exit      string
+	Risk      string
+}
+
+// GetStrategyInfo returns detailed info for all strategies in table format
+func GetStrategyInfo() []StrategyInfo {
+	return []StrategyInfo{
+		{
+			Name:     "snipe_flip",
+			HoldTime: "3-5 min",
+			Entry:    "3+ holders",
+			Exit:     "+18%/-8%",
+			Risk:     "High",
+		},
+		{
+			Name:     "conservative",
+			HoldTime: "10-20 min",
+			Entry:    "50+ holders",
+			Exit:     "+25%/-10%",
+			Risk:     "Low",
+		},
+		{
+			Name:     "scalping",
+			HoldTime: "30s-2min",
+			Entry:    "2+ holders",
+			Exit:     "+10%/-5%",
+			Risk:     "Highest",
+		},
+		{
+			Name:     "data_collection",
+			HoldTime: "Observe",
+			Entry:    "All tokens",
+			Exit:     "Track only",
+			Risk:     "Zero",
+		},
+		{
+			Name:     "momentum_rider",
+			HoldTime: "5-15 min",
+			Entry:    "10+ holders",
+			Exit:     "+40%/-15%",
+			Risk:     "Medium",
+		},
+	}
+}
+
 // ListStrategies returns all available strategy names with descriptions
 func ListStrategies() []string {
 	strategies := []string{}

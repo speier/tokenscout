@@ -28,17 +28,32 @@ var startCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If --list-strategies, show available strategies and exit
 		if listStrategies {
-			fmt.Println("\n═══════════════════════════════════════")
-			fmt.Println("📋 Available Strategy Presets:")
-			fmt.Println("═══════════════════════════════════════\n")
+			fmt.Println("\n═══════════════════════════════════════════════════════════════════════")
+			fmt.Println("📋 Available Strategy Presets")
+			fmt.Println("═══════════════════════════════════════════════════════════════════════")
+			fmt.Println()
+			fmt.Printf("%-18s %-13s %-14s %-13s %-8s\n", "Strategy", "Hold Time", "Entry", "Exit", "Risk")
+			fmt.Println("-----------------------------------------------------------------------")
+			
+			for _, info := range strategies.GetStrategyInfo() {
+				fmt.Printf("%-18s %-13s %-14s %-13s %-8s\n",
+					info.Name,
+					info.HoldTime,
+					info.Entry,
+					info.Exit,
+					info.Risk)
+			}
+			
+			fmt.Println()
+			fmt.Println("Detailed descriptions:")
 			for _, desc := range strategies.ListStrategies() {
 				fmt.Println(desc)
 			}
-			fmt.Println("\n═══════════════════════════════════════")
+			fmt.Println("\n═══════════════════════════════════════════════════════════════════════")
 			fmt.Println("Usage:")
 			fmt.Println("  tokenscout start --strategy <name>")
 			fmt.Println("  tokenscout start --strategy snipe_flip --dry-run")
-			fmt.Println("═══════════════════════════════════════\n")
+			fmt.Println("═══════════════════════════════════════════════════════════════════════\n")
 			return nil
 		}
 

@@ -1,0 +1,3 @@
+- [] Per-strategy performance tracking in database
+- [] 'strategies compare' command for analytics
+- [] Custom strategy file support
