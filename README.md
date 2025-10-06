@@ -2,6 +2,9 @@
 
 Solana trading bot that monitors new tokens and trades automatically based on configurable rules.
 
+> **Quick Start:** [QUICKSTART.md](QUICKSTART.md) - Get running in 60 seconds  
+> **Windows Users:** [Windows Quick Start](docs/WINDOWS_QUICKSTART.md)
+
 ## Installation
 
 ### From Release (Recommended)
