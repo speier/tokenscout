@@ -61,10 +61,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("trading.slippage_bps", 150)
 	v.SetDefault("trading.priority_fee_microlamports", 5000)
 
-	v.SetDefault("rules.min_liquidity_usd", 20000)
-	v.SetDefault("rules.max_mint_age_sec", 7200)
-	v.SetDefault("rules.min_holders", 10) // Lower for fresh tokens
-	v.SetDefault("rules.dev_wallet_max_pct", 20)
+	// Rules tuned for catching brand new tokens
+	v.SetDefault("rules.min_liquidity_usd", 1000)     // Lower threshold for new tokens
+	v.SetDefault("rules.max_mint_age_sec", 300)       // Only tokens < 5 minutes old
+	v.SetDefault("rules.min_holders", 5)              // Very new tokens have few holders
+	v.SetDefault("rules.dev_wallet_max_pct", 50)      // Allow higher for brand new tokens
 	v.SetDefault("rules.block_freeze_authority", true)
 	v.SetDefault("rules.allow_mint_authority", false)
 
