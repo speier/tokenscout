@@ -4,14 +4,36 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/speier/tokenscout/internal/models"
 	"github.com/spf13/viper"
 )
 
+var (
+	embeddedConfigYAML  string
+	embeddedEnvTemplate string
+)
+
+// SetEmbeddedTemplates stores the embedded template files
+func SetEmbeddedTemplates(configYAML, envTemplate string) {
+	embeddedConfigYAML = configYAML
+	embeddedEnvTemplate = envTemplate
+}
+
 func Load(configPath string) (*models.Config, error) {
+	// Load .env file if it exists (silently ignore if not found)
+	_ = godotenv.Load()
+
 	v := viper.New()
 	v.SetConfigFile(configPath)
 	v.SetConfigType("yaml")
+
+	// Enable environment variable support
+	v.AutomaticEnv()
+
+	// Bind specific env vars for RPC URLs (priority: .env > config.yaml)
+	v.BindEnv("solana.rpc_url", "SOLANA_RPC_URL")
+	v.BindEnv("solana.ws_url", "SOLANA_WS_URL")
 
 	// Set defaults
 	setDefaults(v)
@@ -34,7 +56,7 @@ func Load(configPath string) (*models.Config, error) {
 func setDefaults(v *viper.Viper) {
 	v.SetDefault("engine.mode", "dry_run")
 	v.SetDefault("engine.max_positions", 3)
-	
+
 	// Set trading defaults (must come before engine.max_positions is read elsewhere)
 	v.SetDefault("trading.max_open_positions", 3)
 
@@ -45,7 +67,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("solana.jupiter_api_url", "https://quote-api.jup.ag/v6")
 
 	v.SetDefault("listener.enabled", true)
-	v.SetDefault("listener.mode", "websocket") // "websocket" or "polling"
+	v.SetDefault("listener.mode", "websocket")        // "websocket" or "polling"
 	v.SetDefault("listener.polling_interval_sec", 10) // Poll every 10 seconds
 	// DEX programs to monitor for new token pools (90%+ of new tokens launch here)
 	v.SetDefault("listener.programs", []string{
@@ -56,9 +78,9 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("trading.base_mint", "SOL")
 	v.SetDefault("trading.quote_mint", "USDC")
-	v.SetDefault("trading.max_spend_per_trade", 0.2)       // Smaller positions for high frequency
-	v.SetDefault("trading.max_open_positions", 5)          // More concurrent trades
-	v.SetDefault("trading.slippage_bps", 400)              // Higher slippage for speed
+	v.SetDefault("trading.max_spend_per_trade", 0.2)          // Smaller positions for high frequency
+	v.SetDefault("trading.max_open_positions", 5)             // More concurrent trades
+	v.SetDefault("trading.slippage_bps", 400)                 // Higher slippage for speed
 	v.SetDefault("trading.priority_fee_microlamports", 20000) // Higher priority for faster confirms
 
 	// Rules tuned for snipe & flip strategy: catch early, exit fast
@@ -70,9 +92,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("rules.allow_mint_authority", false)  // CRITICAL: reject if supply can be minted
 
 	// Risk settings for snipe & flip: quick exits
-	v.SetDefault("risk.stop_loss_pct", 8)              // Quick exit on loss
-	v.SetDefault("risk.take_profit_pct", 18)           // Take profits fast (don't be greedy)
-	v.SetDefault("risk.max_trade_duration_sec", 240)   // 4 min max hold (exit before rugs)
+	v.SetDefault("risk.stop_loss_pct", 8)            // Quick exit on loss
+	v.SetDefault("risk.take_profit_pct", 18)         // Take profits fast (don't be greedy)
+	v.SetDefault("risk.max_trade_duration_sec", 240) // 4 min max hold (exit before rugs)
 }
 
 func CreateDefault(configPath string) error {
@@ -80,15 +102,36 @@ func CreateDefault(configPath string) error {
 		return fmt.Errorf("config file already exists: %s", configPath)
 	}
 
-	v := viper.New()
-	setDefaults(v)
+	// Use embedded template if available, otherwise generate from defaults
+	if embeddedConfigYAML != "" {
+		if err := os.WriteFile(configPath, []byte(embeddedConfigYAML), 0644); err != nil {
+			return fmt.Errorf("failed to write config: %w", err)
+		}
+	} else {
+		// Fallback: generate from viper defaults
+		v := viper.New()
+		setDefaults(v)
+		v.SetConfigFile(configPath)
+		v.SetConfigType("yaml")
+		if err := v.WriteConfigAs(configPath); err != nil {
+			return fmt.Errorf("failed to write config: %w", err)
+		}
+	}
 
-	v.SetConfigFile(configPath)
-	v.SetConfigType("yaml")
+	return nil
+}
 
-	// Create config file
-	if err := v.WriteConfigAs(configPath); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
+func CreateEnvTemplate(envPath string) error {
+	if _, err := os.Stat(envPath); err == nil {
+		return fmt.Errorf("env file already exists: %s", envPath)
+	}
+
+	if embeddedEnvTemplate == "" {
+		return fmt.Errorf("embedded env template not available")
+	}
+
+	if err := os.WriteFile(envPath, []byte(embeddedEnvTemplate), 0600); err != nil {
+		return fmt.Errorf("failed to write env file: %w", err)
 	}
 
 	return nil

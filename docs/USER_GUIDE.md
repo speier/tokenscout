@@ -23,9 +23,23 @@ go build
 ./tokenscout init
 ```
 
-Creates `config.yaml` with sensible defaults.
+Creates two files:
+- `config.yaml` - Trading rules and behavior settings
+- `.env` - RPC URLs and API keys (keep this private!)
 
-### 2. Create/Import Wallet
+### 2. Configure RPC URLs
+
+Edit `.env` and add your RPC endpoints:
+```bash
+SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
+SOLANA_WS_URL=wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
+```
+
+**RPC Providers:**
+- **Helius**: Best for bots, no rate limits on paid plans ($29/mo)
+- **Public RPC**: Free but heavily rate limited (polling mode only)
+
+### 3. Create/Import Wallet
 ```bash
 # Create new wallet
 ./tokenscout wallet new
@@ -33,19 +47,6 @@ Creates `config.yaml` with sensible defaults.
 # Or import existing wallet
 cp /path/to/wallet.json wallet.json
 ```
-
-### 3. Configure RPC (Optional but Recommended)
-
-Edit `config.yaml`:
-```yaml
-solana:
-  rpc_url: https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
-  ws_url: wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
-```
-
-**RPC Providers:**
-- **Helius**: Best for bots, no rate limits on paid plans ($29/mo)
-- **Public RPC**: Free but heavily rate limited, will miss tokens
 
 ## Usage
 
@@ -151,8 +152,9 @@ rules:
 
 ## Data Storage
 
-- `config.yaml` - Configuration
-- `wallet.json` - Your wallet (keep safe!)
+- `config.yaml` - Trading rules and behavior (safe to commit)
+- `.env` - RPC URLs and API keys (**never commit this!**)
+- `wallet.json` - Your wallet keypair (**keep this safe!**)
 - `tokenscout.db` - SQLite database (trades, positions)
 
 ## Performance Tracking
@@ -171,4 +173,5 @@ Shows win rate, avg profit, total trades per strategy.
 3. Use `stop_loss_pct` to limit losses
 4. Monitor with `./tokenscout status`
 5. Keep wallet seed phrase safe
-6. Don't share your API keys
+6. **Never commit `.env` or `wallet.json` to git**
+7. Use `.gitignore` to protect sensitive files

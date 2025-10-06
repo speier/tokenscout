@@ -1,0 +1,38 @@
+engine:
+    max_positions: 3
+    mode: dry_run
+listener:
+    coalesce_window_ms: 200
+    enabled: true
+    mode: websocket  # Using websocket with Helius RPC (no rate limits!)
+    polling_interval_sec: 10
+    programs:
+        - 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8  # Raydium AMM V4
+        - 9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP  # Orca Whirlpool
+    webhook_port: 8080
+    webhook_path: /webhook
+    webhook_secret: ""
+risk:
+    max_trade_duration_sec: 240  # 4 min max hold (snipe & flip: 3-5 min range)
+    stop_loss_pct: 8             # Quick exit on loss
+    take_profit_pct: 18          # Take profits fast (don't be greedy)
+rules:
+    allow_mint_authority: false
+    block_freeze_authority: true
+    dev_wallet_max_pct: 40       # Stricter for safety (was 50)
+    max_mint_age_sec: 300        # Only tokens < 5 minutes old
+    min_holders: 3               # Very early entry (was 5)
+    min_liquidity_usd: 3000      # Need enough liquidity to exit (was 1000)
+solana:
+    jupiter_api_url: https://quote-api.jup.ag/v6
+    network: mainnet-beta
+    rpc_url: https://api.mainnet-beta.solana.com  # Override in .env for production
+    wallet_path: wallet.json
+    ws_url: wss://api.mainnet-beta.solana.com     # Override in .env for production
+trading:
+    base_mint: SOL
+    max_open_positions: 5        # More concurrent trades for high frequency
+    max_spend_per_trade: 0.2     # Smaller positions (was 0.5) for safety
+    priority_fee_microlamports: 20000  # Higher priority for faster confirms
+    quote_mint: USDC
+    slippage_bps: 400            # Higher slippage for speed (was 150)

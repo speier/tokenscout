@@ -8,7 +8,14 @@ Solana trading bot that monitors new tokens on Raydium/Orca DEXes and executes t
 # Download and setup
 curl -LO https://github.com/speier/tokenscout/releases/latest/download/tokenscout_*_Darwin_arm64.tar.gz
 tar -xzf tokenscout_*.tar.gz
+
+# Initialize config files
 ./tokenscout init
+
+# Add your RPC URLs to .env
+# Edit .env and set SOLANA_RPC_URL and SOLANA_WS_URL
+
+# Create wallet
 ./tokenscout wallet new
 
 # Start trading (simulation mode)
