@@ -122,6 +122,11 @@ goreleaser release --snapshot --clean
 - Verify `.goreleaser.yml` syntax: `goreleaser check`
 - Ensure tag follows `v*` pattern
 
+**"only configurations files on version: 1 are supported"**
+- GitHub Action is using old GoReleaser v1
+- Should use goreleaser-action@v6 with version: '~> v2'
+- Already fixed in `.github/workflows/release.yml`
+
 **Binary not working?**
 - Check build logs in GitHub Actions
 - Test locally with `goreleaser build --snapshot`
