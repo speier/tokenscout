@@ -9,11 +9,11 @@ make release
 ```
 
 That's it! This will:
-1. Auto-increment minor version (0.1.0 → 0.2.0)
+1. Auto-increment patch version (0.1.0 → 0.1.1)
 2. Run tests (validates code)
 3. Build locally (ensures it compiles)
 4. Commit VERSION file
-5. Create git tag (e.g., `v0.2.0`)
+5. Create git tag (e.g., `v0.1.1`)
 6. Push to GitHub
 7. GitHub Actions builds for all platforms
 8. Creates GitHub Release with binaries
@@ -29,16 +29,16 @@ git status
 make release
 
 # Output:
-# Bumping minor version...
-# Version bumped: 0.2.0
+# Bumping patch version...
+# Version bumped: 0.1.1
 # ... runs tests ...
 # ... builds binary ...
-# Creating release v0.2.0
-# ... git commit -m "chore: bump version to v0.2.0" ...
-# ... git tag -a v0.2.0 -m "Release v0.2.0" ...
+# Creating release v0.1.1
+# ... git commit -m "chore: bump version to v0.1.1" ...
+# ... git tag -a v0.1.1 -m "Release v0.1.1" ...
 # ... git push origin main ...
-# ... git push origin v0.2.0 ...
-# ✓ Release v0.2.0 pushed. GitHub Actions will build and publish.
+# ... git push origin v0.1.1 ...
+# ✓ Release v0.1.1 pushed. GitHub Actions will build and publish.
 
 # 3. Watch GitHub Actions (optional)
 # Visit: https://github.com/speier/tokenscout/actions
@@ -63,15 +63,16 @@ ls -lh dist/
 Version is stored in the `VERSION` file and auto-increments:
 
 ```bash
-# Default: auto-increment minor version (0.1.0 → 0.2.0)
+# Default: auto-increment patch version (0.1.0 → 0.1.1)
 make release
 
-# Manual version bumps:
-make bump-patch    # 0.1.0 → 0.1.1 (bug fixes)
+# Manual version bumps for bigger changes:
 make bump-minor    # 0.1.0 → 0.2.0 (new features)
 make bump-major    # 0.1.0 → 1.0.0 (breaking changes)
+make release-manual
 
-# Then release manually (doesn't auto-bump)
+# Or bump then release:
+make bump-patch    # 0.1.0 → 0.1.1
 make release-manual
 
 # Or edit VERSION file directly

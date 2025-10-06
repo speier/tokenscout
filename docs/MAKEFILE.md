@@ -53,9 +53,9 @@ make build
 ## Release Management
 
 ```bash
-# Create and push release (auto-increments minor version)
+# Create and push release (auto-increments patch version)
 make release
-# This runs: bump-minor → test → build → commit → tag → push
+# This runs: bump-patch → test → build → commit → tag → push
 
 # Manual version control:
 make bump-patch    # 0.1.0 → 0.1.1
@@ -76,8 +76,8 @@ make build-all
 ```
 
 **Version File:** Version is stored in `VERSION` file (e.g., `0.1.0`)  
-**Auto-increment:** `make release` automatically bumps minor version  
-**Manual control:** Use `bump-*` targets or edit VERSION file directly
+**Auto-increment:** `make release` automatically bumps patch version  
+**Manual control:** Use `bump-minor`/`bump-major` for bigger releases or edit VERSION file directly
 
 ## Dependencies
 

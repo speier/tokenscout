@@ -81,8 +81,8 @@ bump-major:
 	echo "$$major.0.0" > VERSION
 	@echo "Version bumped: $$(cat VERSION)"
 
-# Create and push a release tag (auto-increments minor version)
-release: bump-minor test build
+# Create and push a release tag (auto-increments patch version)
+release: bump-patch test build
 	@echo "Creating release $(VERSION)"
 	@echo "Validation passed ✓"
 	git add VERSION
