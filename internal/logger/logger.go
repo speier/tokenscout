@@ -3,7 +3,6 @@ package logger
 import (
 	"io"
 	"os"
-	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -17,7 +16,7 @@ func Init(level string, pretty bool) {
 	if pretty {
 		output = zerolog.ConsoleWriter{
 			Out:        os.Stdout,
-			TimeFormat: time.RFC3339,
+			TimeFormat: "15:04:05", // HH:MM:SS
 		}
 	}
 
