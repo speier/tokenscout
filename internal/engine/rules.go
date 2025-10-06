@@ -123,9 +123,16 @@ func (r *RuleEngine) Evaluate(ctx context.Context, event *models.Event) (*Decisi
 
 	if !decision.Allow {
 		logger.Info().
-			Str("mint", event.Mint).
-			Strs("reasons", decision.Reasons).
-			Msg("Token rejected by rules")
+			Str("mint", formatMint(event.Mint)).
+			Str("reason", decision.Reasons[0]).
+			Msg("❌ Rejected")
+		logger.Debug().
+			Strs("all_reasons", decision.Reasons).
+			Msg("Full rejection details")
+	} else {
+		logger.Info().
+			Str("mint", formatMint(event.Mint)).
+			Msg("✅ Passed all checks")
 	}
 
 	return decision, nil

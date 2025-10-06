@@ -40,10 +40,11 @@ func NewListener(wsURL string, programIDs []string, repo repository.Repository) 
 }
 
 func (l *Listener) Start(ctx context.Context) error {
-	logger.Info().
+	logger.Info().Msg("📡 Connecting to Solana blockchain...")
+	logger.Debug().
 		Str("ws_url", l.wsURL).
 		Int("programs", len(l.programs)).
-		Msg("Starting blockchain listener")
+		Msg("WebSocket connection details")
 
 	for {
 		select {
@@ -67,9 +68,10 @@ func (l *Listener) connect(ctx context.Context) error {
 	}
 	defer client.Close()
 
-	logger.Info().
+	logger.Info().Msg("✅ Connected! Monitoring for new tokens...")
+	logger.Debug().
 		Int("programs", len(l.programs)).
-		Msg("✓ WebSocket connected, subscribed to programs")
+		Msg("Subscribed to DEX programs")
 
 	// Subscribe to logs for each program
 	for _, program := range l.programs {

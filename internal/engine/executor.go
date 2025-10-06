@@ -12,6 +12,13 @@ import (
 	"github.com/speier/tokenscout/internal/solana"
 )
 
+func formatMint(mint string) string {
+	if len(mint) > 8 {
+		return mint[:4] + ".." + mint[len(mint)-4:]
+	}
+	return mint
+}
+
 type Executor struct {
 	config        *models.Config
 	repo          repository.Repository
@@ -57,10 +64,12 @@ func (e *Executor) ExecuteBuy(ctx context.Context, mint string, reason string) e
 	}
 
 	logger.Info().
-		Str("mint", mint).
+		Str("mint", formatMint(mint)).
+		Msg("💰 Preparing to buy...")
+	logger.Debug().
 		Str("mode", string(e.config.Engine.Mode)).
 		Float64("amount", e.config.Trading.MaxSpendPerTrade).
-		Msg("Executing BUY order")
+		Msg("Buy order details")
 
 	// Create trade record
 	trade := &models.Trade{
@@ -129,18 +138,21 @@ func (e *Executor) ExecuteBuy(ctx context.Context, mint string, reason string) e
 	tokenPriceUSD := usdSpent / tokenQuantity
 	
 	logger.Info().
-		Str("mint", mint).
+		Str("mint", formatMint(mint)).
+		Float64("price_usd", tokenPriceUSD).
+		Float64("tokens", tokenQuantity).
+		Msg("💵 Quote received")
+	logger.Debug().
 		Float64("sol_spent", solSpent).
-		Float64("tokens_received", tokenQuantity).
-		Float64("token_price_usd", tokenPriceUSD).
-		Float64("price_impact", parsePriceImpact(quote.PriceImpactPct)).
-		Msg("Real quote received from Jupiter")
+		Float64("price_impact_pct", parsePriceImpact(quote.PriceImpactPct)).
+		Msg("Quote details")
 	
 	// In dry-run mode, don't execute but use real prices
 	if e.config.Engine.Mode == models.ModeDryRun {
 		logger.Info().
-			Str("mint", mint).
-			Msg("DRY RUN: Would execute buy via Jupiter (using real quote)")
+			Str("mint", formatMint(mint)).
+			Msg("✅ Simulated buy (dry-run mode)")
+		logger.Debug().Msg("Would execute actual swap on Jupiter")
 		
 		// Update trade as executed (simulated)
 		if err := e.repo.UpdateTradeStatus(ctx, trade.ID, models.TradeStatusExecuted, "DRY_RUN"); err != nil {
@@ -161,10 +173,9 @@ func (e *Executor) ExecuteBuy(ctx context.Context, mint string, reason string) e
 		}
 
 		logger.Info().
-			Str("mint", mint).
-			Float64("token_price_usd", tokenPriceUSD).
-			Float64("tokens", tokenQuantity).
-			Msg("DRY RUN: Position opened with real quote price")
+			Str("mint", formatMint(mint)).
+			Float64("entry_price", tokenPriceUSD).
+			Msg("📈 Position opened")
 		
 		return nil
 	}

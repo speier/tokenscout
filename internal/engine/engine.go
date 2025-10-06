@@ -75,15 +75,22 @@ func (e *engine) Start(ctx context.Context) error {
 	e.status.Running = true
 	e.mu.Unlock()
 
-	logger.Info().
+	if e.config.Engine.Mode == models.ModeDryRun {
+		logger.Info().Msg("🤖 Bot started in simulation mode (no real money)")
+	} else {
+		logger.Info().Msg("🤖 Bot started in LIVE mode")
+	}
+	
+	logger.Debug().
 		Str("mode", string(e.config.Engine.Mode)).
 		Int("max_positions", e.config.Trading.MaxOpenPositions).
-		Msg("Trading engine started")
+		Msg("Engine configuration")
 
 	// Initialize executor and monitor
 	wallet, err := e.loadWallet()
 	if err != nil {
-		logger.Warn().Err(err).Msg("Failed to load wallet, execution disabled")
+		logger.Info().Msg("💰 No wallet loaded - will simulate trades only")
+		logger.Debug().Err(err).Msg("Wallet load details")
 	} else {
 		solanaClient := solana.NewClient(e.config.Solana.RPCURL, wallet)
 		jupiterClient := solana.NewJupiterClient(e.config.Solana.JupiterAPIURL)
