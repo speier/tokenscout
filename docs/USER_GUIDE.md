@@ -29,15 +29,22 @@ Creates two files:
 
 ### 2. Configure RPC URLs
 
-Edit `.env` and add your RPC endpoints:
+Edit `.env` and add your Helius API key:
 ```bash
-SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
-SOLANA_WS_URL=wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
+HELIUS_API_KEY=your_actual_api_key_here
 ```
+
+The key will be automatically injected into the RPC URLs defined in `config.yaml`.
 
 **RPC Providers:**
 - **Helius**: Best for bots, no rate limits on paid plans ($29/mo)
 - **Public RPC**: Free but heavily rate limited (polling mode only)
+
+For non-Helius providers, you can override the full URLs:
+```bash
+SOLANA_RPC_URL=https://your-rpc-provider.com
+SOLANA_WS_URL=wss://your-rpc-provider.com
+```
 
 ### 3. Create/Import Wallet
 ```bash

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/speier/tokenscout/internal/models"
@@ -50,7 +51,18 @@ func Load(configPath string) (*models.Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	// Post-process: Inject API key from env into URLs if needed
+	if apiKey := os.Getenv("HELIUS_API_KEY"); apiKey != "" {
+		cfg.Solana.RPCURL = injectAPIKey(cfg.Solana.RPCURL, apiKey)
+		cfg.Solana.WSURL = injectAPIKey(cfg.Solana.WSURL, apiKey)
+	}
+
 	return &cfg, nil
+}
+
+// injectAPIKey replaces ${HELIUS_API_KEY} placeholder in URL with actual key
+func injectAPIKey(url, apiKey string) string {
+	return strings.ReplaceAll(url, "${HELIUS_API_KEY}", apiKey)
 }
 
 func setDefaults(v *viper.Viper) {

@@ -32,7 +32,7 @@ var initCmd = &cobra.Command{
 		}
 
 		fmt.Println("\nNext steps:")
-		fmt.Println("1. Edit .env and add your Solana RPC URLs (required)")
+		fmt.Println("1. Edit .env and add your HELIUS_API_KEY (required)")
 		fmt.Println("2. Edit config.yaml to customize trading rules (optional)")
 		fmt.Println("3. Run 'tokenscout wallet' to create or import a wallet")
 		fmt.Println("4. Run 'tokenscout start' to begin trading")

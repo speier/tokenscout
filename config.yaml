@@ -26,9 +26,9 @@ rules:
 solana:
     jupiter_api_url: https://quote-api.jup.ag/v6
     network: mainnet-beta
-    rpc_url: https://api.mainnet-beta.solana.com  # Override in .env for production
+    rpc_url: https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}
     wallet_path: wallet.json
-    ws_url: wss://api.mainnet-beta.solana.com     # Override in .env for production
+    ws_url: wss://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}
 trading:
     base_mint: SOL
     max_open_positions: 5        # More concurrent trades for high frequency

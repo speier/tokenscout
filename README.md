@@ -12,8 +12,8 @@ tar -xzf tokenscout_*.tar.gz
 # Initialize config files
 ./tokenscout init
 
-# Add your RPC URLs to .env
-# Edit .env and set SOLANA_RPC_URL and SOLANA_WS_URL
+# Add your Helius API key to .env
+# Edit .env and set HELIUS_API_KEY=your_key_here
 
 # Create wallet
 ./tokenscout wallet new
