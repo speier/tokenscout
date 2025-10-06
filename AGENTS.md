@@ -116,17 +116,19 @@ listener:
 ## Build & Test Commands
 
 ```bash
-# Build
+# Development: Use go run for ad-hoc runs (preferred)
+go run . strategies compare
+go run . start --dry-run --strategy snipe_flip
+go run . positions
+
+# Build binary (for releases/production only)
 go build -o tokenscout .
 
 # Test (no data needed)
-./tokenscout strategies compare
+go run . strategies compare
 
 # List strategies
-./tokenscout start --list-strategies
-
-# Run with strategy
-./tokenscout start --strategy snipe_flip --dry-run
+go run . start --list-strategies
 ```
 
 ## Best Practices
