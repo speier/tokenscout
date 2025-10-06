@@ -75,31 +75,38 @@ func (e *engine) Start(ctx context.Context) error {
 	e.status.Running = true
 	e.mu.Unlock()
 
+	// Initialize executor and monitor
+	wallet, err := e.loadWallet()
+	walletLoaded := err == nil
+
+	// Log startup info in one consolidated message
 	if e.config.Engine.Mode == models.ModeDryRun {
-		logger.Info().Msg("🤖 Bot started in simulation mode (no real money)")
+		if walletLoaded {
+			logger.Info().Msg("🚀 Starting engine in dry-run mode (simulation with real quotes)")
+		} else {
+			logger.Info().Msg("🚀 Starting engine in dry-run mode (simulation, no wallet)")
+		}
 	} else {
-		logger.Info().Msg("🤖 Bot started in LIVE mode")
+		if walletLoaded {
+			logger.Info().Msg("🚀 Starting engine in LIVE mode (real trades!)")
+		} else {
+			logger.Warn().Msg("⚠️  Starting engine in LIVE mode but no wallet loaded - cannot trade!")
+		}
 	}
-	
+
 	logger.Debug().
 		Str("mode", string(e.config.Engine.Mode)).
 		Int("max_positions", e.config.Trading.MaxOpenPositions).
+		Bool("wallet_loaded", walletLoaded).
 		Msg("Engine configuration")
 
-	// Initialize executor and monitor
-	wallet, err := e.loadWallet()
-	if err != nil {
-		logger.Info().Msg("💰 No wallet loaded - will simulate trades only")
-		logger.Debug().Err(err).Msg("Wallet load details")
-	}
-	
 	// Create executor and monitor even without wallet (for dry-run mode)
 	solanaClient := solana.NewClient(e.config.Solana.RPCURL, wallet) // wallet can be nil
 	jupiterClient := solana.NewJupiterClient(e.config.Solana.JupiterAPIURL)
-	
+
 	e.executor = NewExecutor(e.config, e.repo, solanaClient, jupiterClient)
 	e.monitor = NewMonitor(e.config, e.repo, e.executor, jupiterClient)
-	
+
 	// Start position monitor
 	go func() {
 		if err := e.monitor.Start(ctx); err != nil {
@@ -110,13 +117,13 @@ func (e *engine) Start(ctx context.Context) error {
 	// Start blockchain listener if enabled
 	if e.config.Listener.Enabled {
 		var eventCh <-chan *models.Event
-		
+
 		if e.config.Listener.Mode == "websocket" {
 			// WebSocket mode (free with rate limits)
 			logger.Debug().
 				Str("ws_url", e.config.Solana.WSURL).
 				Msg("Creating WebSocket listener")
-			
+
 			listener, err := NewListener(
 				e.config.Solana.WSURL,
 				e.config.Solana.RPCURL,
@@ -128,7 +135,7 @@ func (e *engine) Start(ctx context.Context) error {
 			} else {
 				e.listener = listener
 				eventCh = listener.EventChannel()
-				
+
 				go func() {
 					if err := listener.Start(ctx); err != nil {
 						logger.Error().Err(err).Msg("Listener error")
@@ -152,7 +159,7 @@ func (e *engine) Start(ctx context.Context) error {
 				logger.Error().Err(err).Msg("Failed to create poller")
 			} else {
 				eventCh = poller.EventChannel()
-				
+
 				go func() {
 					if err := poller.Start(ctx); err != nil {
 						logger.Error().Err(err).Msg("Poller error")
@@ -160,7 +167,7 @@ func (e *engine) Start(ctx context.Context) error {
 				}()
 			}
 		}
-		
+
 		// Start event processor if we have an event channel
 		if eventCh != nil && e.executor != nil {
 			e.processor = NewProcessor(eventCh, e, e.executor)
@@ -173,7 +180,7 @@ func (e *engine) Start(ctx context.Context) error {
 	} else {
 		logger.Info().Msg("Listener disabled in config")
 	}
-	
+
 	<-ctx.Done()
 	logger.Info().Msg("Trading engine shutting down")
 	return nil

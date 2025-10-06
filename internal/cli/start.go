@@ -58,10 +58,6 @@ var startCmd = &cobra.Command{
 
 		// Apply strategy preset if specified (takes precedence over config file)
 		if strategyName != "" {
-			logger.Get().Info().
-				Str("strategy", strategyName).
-				Msg("📋 Applying strategy preset")
-
 			cfg, err = strategies.ApplyStrategy(cfg, strategyName)
 			if err != nil {
 				return fmt.Errorf("failed to apply strategy: %w", err)
@@ -70,11 +66,7 @@ var startCmd = &cobra.Command{
 			// Set the strategy name in the config
 			cfg.Strategy = strategyName
 
-			// Log strategy details
-			strategy, _ := strategies.GetStrategy(strategyName)
-			logger.Get().Info().
-				Str("description", strategy.Description).
-				Msg("Strategy configuration loaded")
+			logger.Get().Info().Msgf("📋 Strategy loaded: %s", strategyName)
 		} else {
 			// No strategy specified, use "custom" as default
 			cfg.Strategy = "custom"
@@ -87,7 +79,6 @@ var startCmd = &cobra.Command{
 
 		if dryRun {
 			cfg.Engine.Mode = "dry_run"
-			logger.Info().Msg("Running in DRY RUN mode - no trades will be executed")
 		}
 
 		repo, err := repository.NewSQLite(dbPath)

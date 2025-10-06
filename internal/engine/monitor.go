@@ -31,7 +31,7 @@ func NewMonitor(config *models.Config, repo repository.Repository, executor *Exe
 
 // Start begins monitoring positions
 func (m *Monitor) Start(ctx context.Context) error {
-	logger.Info().Msg("Starting position monitor")
+	logger.Info().Msg("👀 Starting position monitor")
 
 	ticker := time.NewTicker(5 * time.Second) // Check every 5 seconds
 	defer ticker.Stop()
