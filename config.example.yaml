@@ -3,8 +3,14 @@ engine:
   max_positions: 3
 
 solana:
-  rpc_url: https://api.mainnet-beta.solana.com
-  ws_url: wss://api.mainnet-beta.solana.com
+  # Free RPC (rate limited, not recommended for production)
+  # rpc_url: https://api.mainnet-beta.solana.com
+  # ws_url: wss://api.mainnet-beta.solana.com
+  
+  # Helius RPC (recommended - replace YOUR_API_KEY with your key from helius.dev)
+  rpc_url: https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
+  ws_url: wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
+  
   network: mainnet-beta  # mainnet-beta, devnet, or testnet
   wallet_path: wallet.json
   jupiter_api_url: https://quote-api.jup.ag/v6

@@ -38,14 +38,33 @@ go build
 ```
 Creates `config.yaml` with defaults.
 
-### 2. Configure RPC (Optional)
-Edit `config.yaml`:
+### 2. Configure RPC (Required for Production)
+
+**Helius (Recommended - $29/month):**
+
+1. Sign up at https://helius.dev
+2. Create API key from dashboard
+3. Edit `config.yaml`:
+
 ```yaml
 solana:
-  rpc_url: https://api.mainnet-beta.solana.com  # Free (limited)
-  # Or use paid RPC for better reliability:
-  # rpc_url: https://your-quicknode-url.com
+  rpc_url: https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
+  ws_url: wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
 ```
+
+**Why Helius:**
+- No rate limits on paid plans
+- Enhanced APIs (parsed transactions, webhooks)
+- Best performance for trading bots
+- Developer plan: 1M requests/day
+
+**Free RPC (Testing Only):**
+```yaml
+solana:
+  rpc_url: https://api.mainnet-beta.solana.com
+  ws_url: wss://api.mainnet-beta.solana.com
+```
+⚠️ Rate limited (~40 req/10s) - will miss most tokens
 
 ### 3. Adjust Trading Rules
 ```yaml
@@ -133,18 +152,23 @@ All data stored in `tokenscout.db` (SQLite):
 ## Troubleshooting
 
 **No tokens detected:**
-- Free RPC has rate limits (~40 req/10s)
-- Consider paid RPC (Helius, QuickNode, Triton)
-- Or wait for off-peak hours
-
-**WebSocket disconnects:**
-- Normal behavior, auto-reconnects
-- Free RPC limits: 100MB/30s, 40 connections
+- **Most common:** Using free RPC with rate limits (~40 req/10s)
+- **Solution:** Use Helius or another paid RPC service
+- Free RPC will miss 95%+ of tokens due to rate limiting
 
 **Rate limit errors (429):**
-- Reduce polling frequency
-- Switch to paid RPC
-- Bot fetches every transaction to parse - very RPC intensive
+- Fetching every transaction hits limits quickly
+- **Solution:** Switch to Helius ($29/month) for unlimited requests
+- Alternative: Wait for off-peak hours (late night UTC)
+
+**WebSocket disconnects:**
+- Normal behavior, bot auto-reconnects
+- Check logs for connection status
+
+**API Key not working:**
+- Verify key is correct in `config.yaml`
+- Check Helius dashboard for usage limits
+- Make sure format is: `https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`
 
 ## Configuration Reference
 
