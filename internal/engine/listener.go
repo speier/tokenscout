@@ -15,13 +15,15 @@ import (
 )
 
 type Listener struct {
-	wsURL    string
-	programs []solana.PublicKey
-	repo     repository.Repository
-	eventCh  chan *models.Event
+	wsURL     string
+	programs  []solana.PublicKey
+	repo      repository.Repository
+	eventCh   chan *models.Event
+	rpcClient *rpc.Client
+	parsers   *ParsersRegistry
 }
 
-func NewListener(wsURL string, programIDs []string, repo repository.Repository) (*Listener, error) {
+func NewListener(wsURL string, rpcURL string, programIDs []string, repo repository.Repository) (*Listener, error) {
 	programs := make([]solana.PublicKey, 0, len(programIDs))
 	for _, id := range programIDs {
 		pubkey, err := solana.PublicKeyFromBase58(id)
@@ -32,10 +34,12 @@ func NewListener(wsURL string, programIDs []string, repo repository.Repository) 
 	}
 
 	return &Listener{
-		wsURL:    wsURL,
-		programs: programs,
-		repo:     repo,
-		eventCh:  make(chan *models.Event, 100),
+		wsURL:     wsURL,
+		programs:  programs,
+		repo:      repo,
+		eventCh:   make(chan *models.Event, 100),
+		rpcClient: rpc.New(rpcURL),
+		parsers:   NewParsersRegistry(),
 	}, nil
 }
 
@@ -156,43 +160,89 @@ func (l *Listener) processLog(ctx context.Context, logResult *ws.LogResult, prog
 }
 
 func (l *Listener) parseEvent(logResult *ws.LogResult, program solana.PublicKey) *models.Event {
-	// Simple heuristic-based parsing
-	// TODO: Implement proper instruction parsing for Raydium/Orca
+	signature := logResult.Value.Signature
 	
-	logs := logResult.Value.Logs
-	signature := logResult.Value.Signature.String()
-
-	// Look for keywords in logs
-	for _, log := range logs {
-		// Detect new pool initialization
-		if containsAny(log, []string{"InitializePool", "initialize", "CreatePool"}) {
-			return &models.Event{
-				Type:      models.EventTypeNewPool,
-				Mint:      extractMintFromLogs(logs),
-				Timestamp: time.Now(),
-				Raw:       toJSON(logResult),
-			}
+	// Fetch full transaction to parse instructions
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	maxVersion := uint64(0)
+	tx, err := l.rpcClient.GetTransaction(
+		ctx,
+		signature,
+		&rpc.GetTransactionOpts{
+			Encoding:                       solana.EncodingBase64,
+			MaxSupportedTransactionVersion: &maxVersion,
+		},
+	)
+	
+	if err != nil {
+		// Only log non-rate-limit errors
+		if !contains(err.Error(), "429") && !contains(err.Error(), "Too many") {
+			logger.Debug().
+				Err(err).
+				Str("signature", signature.String()).
+				Msg("Failed to fetch transaction")
 		}
+		return nil
+	}
+	
+	if tx == nil || tx.Transaction == nil {
+		return nil
+	}
+	
+	// Parse transaction to extract mint addresses
+	parsed, err := tx.Transaction.GetTransaction()
+	if err != nil {
+		logger.Debug().
+			Err(err).
+			Str("signature", signature.String()).
+			Msg("Failed to parse transaction")
+		return nil
+	}
+	
+	// Use modular parsers to extract mint from transaction
+	mint, dexName, found := l.extractMintFromTransaction(parsed, program)
+	if !found {
+		return nil
+	}
+	
+	logger.Info().
+		Str("mint", formatMint(mint)).
+		Str("dex", dexName).
+		Msg("🔔 New token detected")
+	
+	return &models.Event{
+		Type:      models.EventTypeNewPool,
+		Mint:      mint,
+		Timestamp: time.Now(),
+		Raw:       toJSON(logResult),
+	}
+}
 
-		// Detect new token mint
-		if containsAny(log, []string{"InitializeMint", "CreateMint"}) {
-			return &models.Event{
-				Type:      models.EventTypeNewMint,
-				Mint:      extractMintFromLogs(logs),
-				Timestamp: time.Now(),
-				Raw:       toJSON(logResult),
-			}
+func (l *Listener) extractMintFromTransaction(tx *solana.Transaction, program solana.PublicKey) (string, string, bool) {
+	// Iterate through all instructions in the transaction
+	for _, instruction := range tx.Message.Instructions {
+		programID := tx.Message.AccountKeys[instruction.ProgramIDIndex]
+		
+		// Skip if not the program we're monitoring
+		if !programID.Equals(program) {
+			continue
+		}
+		
+		// Get instruction accounts
+		accounts := make([]solana.PublicKey, len(instruction.Accounts))
+		for i, accountIndex := range instruction.Accounts {
+			accounts[i] = tx.Message.AccountKeys[accountIndex]
+		}
+		
+		// Use parsers registry to extract mint
+		if mint, dexName, found := l.parsers.ParseInstruction(programID, accounts, instruction.Data); found {
+			return mint, dexName, true
 		}
 	}
-
-	// Log for debugging if we can't parse
-	logger.Debug().
-		Str("signature", signature).
-		Str("program", program.String()).
-		Strs("logs", logs).
-		Msg("Unable to parse event from logs")
-
-	return nil
+	
+	return "", "", false
 }
 
 func (l *Listener) EventChannel() <-chan *models.Event {

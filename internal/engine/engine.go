@@ -118,6 +118,7 @@ func (e *engine) Start(ctx context.Context) error {
 			
 			listener, err := NewListener(
 				e.config.Solana.WSURL,
+				e.config.Solana.RPCURL,
 				e.config.Listener.Programs,
 				e.repo,
 			)
