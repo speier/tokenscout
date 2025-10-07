@@ -1,0 +1,50 @@
+# TokenScout Configuration Example
+# Copy this to config.yaml and customize for your setup
+
+engine:
+    max_positions: 3
+    mode: dry_run  # Options: dry_run, live
+
+listener:
+    coalesce_window_ms: 200
+    enabled: true
+    mode: websocket  # Options: websocket, polling, webhook
+    polling_interval_sec: 10
+    programs:
+        - 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8  # Raydium AMM V4
+        - 9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP  # Orca Whirlpool
+    webhook_port: 8080
+    webhook_path: /webhook
+    webhook_secret: ""
+
+risk:
+    max_trade_duration_sec: 240  # Maximum hold time in seconds
+    stop_loss_pct: 8             # Stop loss percentage
+    take_profit_pct: 18          # Take profit percentage
+
+rules:
+    allow_mint_authority: false
+    block_freeze_authority: true
+    dev_wallet_max_pct: 40       # Max percentage for top holder
+    max_mint_age_sec: 300        # Only tokens newer than this (seconds)
+    min_holders: 3               # Minimum number of holders
+    min_liquidity_usd: 3000      # Minimum liquidity in USD
+
+solana:
+    jupiter_api_url: https://quote-api.jup.ag/v6
+    network: mainnet-beta
+    rpc_url: https://api.mainnet-beta.solana.com  # Replace with your RPC URL
+    wallet_path: wallet.json
+    ws_url: wss://api.mainnet-beta.solana.com     # Replace with your WebSocket URL
+
+trading:
+    base_mint: SOL
+    max_open_positions: 5
+    max_spend_per_trade: 0.2     # SOL per trade
+    priority_fee_microlamports: 20000
+    quote_mint: USDC
+    slippage_bps: 400            # Slippage in basis points (400 = 4%)
+
+# Note: For production use with paid RPC providers like Helius:
+# rpc_url: https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}
+# ws_url: wss://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}
