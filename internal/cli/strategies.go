@@ -45,7 +45,7 @@ var strategiesListCmd = &cobra.Command{
 		fmt.Println("Usage:")
 		fmt.Println("  tokenscout start --strategy <name>")
 		fmt.Println("  tokenscout start --strategy snipe_flip --dry-run")
-		fmt.Println("═══════════════════════════════════════════════════════════════════════\n")
+		fmt.Print("═══════════════════════════════════════════════════════════════════════\n\n")
 		return nil
 	},
 }
