@@ -30,6 +30,17 @@ type Processor struct {
 	// Stats tracking for periodic summaries
 	stats    *processorStats
 	statsMux sync.Mutex
+
+	// Rolling log for recent events
+	recentEvents []eventLog
+	eventMux     sync.Mutex
+}
+
+type eventLog struct {
+	timestamp time.Time
+	eventType string // "reject", "watch", "watch_success", "watch_expired", "buy", "buy_fail"
+	mint      string
+	message   string
 }
 
 type processorStats struct {
@@ -67,13 +78,12 @@ func (p *Processor) Start(ctx context.Context) error {
 	recheckTicker := time.NewTicker(15 * time.Second) // Re-check watched tokens every 15s
 	defer recheckTicker.Stop()
 
-	statusTicker := time.NewTicker(3 * time.Second) // Update status line every 3s
-	defer statusTicker.Stop()
+	summaryTicker := time.NewTicker(10 * time.Second) // Print summary every 10s
+	defer summaryTicker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println() // Clear status line on shutdown
 			logger.Info().Msg("Event processor shutting down")
 			return nil
 
@@ -101,8 +111,8 @@ func (p *Processor) Start(ctx context.Context) error {
 			// Re-evaluate watched tokens
 			p.recheckWatchedTokens(ctx)
 
-		case <-statusTicker.C:
-			// Update status line in-place
+		case <-summaryTicker.C:
+			// Print periodic summary
 			p.printStatusLine()
 
 		case <-cleanupTicker.C:
@@ -141,8 +151,10 @@ func (p *Processor) processEvent(ctx context.Context, event *models.Event) error
 		if p.isWatchableRejection(reason) {
 			p.addToWatchList(event, reason)
 			// Don't count as rejected yet - we're giving it a chance
+			// Watch list addition is logged in addToWatchList
 		} else {
-			// Only count as rejected if we're NOT watching it
+			// Only log and count permanent rejections
+			p.addEventToLog("reject", event.Mint, reason)
 			p.statsMux.Lock()
 			p.stats.tokensRejected++
 			p.stats.rejectionReasons[reason]++
@@ -156,7 +168,7 @@ func (p *Processor) processEvent(ctx context.Context, event *models.Event) error
 	p.removeFromWatchList(event.Mint)
 
 	// Token passes rules - this is important, log it!
-	fmt.Println() // Clear status line before important log
+	p.clearStatusDisplay() // Clear the rolling display
 	logger.Info().
 		Str("mint", formatMint(event.Mint)).
 		Msg("✅ Token passes rules, executing buy")
@@ -166,13 +178,17 @@ func (p *Processor) processEvent(ctx context.Context, event *models.Event) error
 	p.statsMux.Unlock()
 
 	if err := p.executor.ExecuteBuy(ctx, event.Mint, "rules_passed"); err != nil {
-		fmt.Println() // Clear status line before error
+		p.clearStatusDisplay() // Clear the rolling display
 		logger.Error().
 			Err(err).
 			Str("mint", event.Mint).
 			Msg("Failed to execute buy")
+		p.addEventToLog("buy_fail", event.Mint, fmt.Sprintf("error: %v", err))
 		return fmt.Errorf("failed to execute buy: %w", err)
 	}
+
+	// Log successful buy
+	p.addEventToLog("buy", event.Mint, "rules_passed")
 
 	return nil
 }
@@ -218,6 +234,9 @@ func (p *Processor) addToWatchList(event *models.Event, reason string) {
 		RejectReason:  reason,
 		CheckCount:    1,
 	}
+
+	// Log to rolling log
+	p.addEventToLog("watch", event.Mint, reason)
 }
 
 // removeFromWatchList removes a token from the watch list
@@ -258,26 +277,35 @@ func (p *Processor) recheckWatchedTokens(ctx context.Context) {
 		}
 
 		if decision.Allow {
+			watchTime := time.Since(token.FirstSeenAt)
+
 			// Token now passes rules! This is important - log it
-			fmt.Println() // Clear status line before important log
+			p.clearStatusDisplay() // Clear the rolling display
 			logger.Info().
 				Str("mint", formatMint(token.Mint)).
 				Int("checks", token.CheckCount).
-				Dur("watch_time", time.Since(token.FirstSeenAt)).
+				Dur("watch_time", watchTime).
 				Msg("✅ Watch list success! Token now passes rules")
 
 			p.removeFromWatchList(token.Mint)
+
+			// Log watch success
+			p.addEventToLog("watch_success", token.Mint,
+				fmt.Sprintf("passed after %s", formatDuration(watchTime)))
 
 			p.statsMux.Lock()
 			p.stats.tokensBought++
 			p.statsMux.Unlock()
 
 			if err := p.executor.ExecuteBuy(ctx, token.Mint, "rules_passed_after_watch"); err != nil {
-				fmt.Println() // Clear status line before error
+				p.clearStatusDisplay() // Clear the rolling display
 				logger.Error().
 					Err(err).
 					Str("mint", token.Mint).
 					Msg("Failed to execute buy for watched token")
+				p.addEventToLog("buy_fail", token.Mint, fmt.Sprintf("error: %v", err))
+			} else {
+				p.addEventToLog("buy", token.Mint, "rules_passed_after_watch")
 			}
 		}
 		// Don't log "still rejected" - it's noise
@@ -292,10 +320,12 @@ func (p *Processor) cleanupWatchList() {
 	maxWatchDuration := 2 * time.Minute
 	now := time.Now()
 	expired := []string{}
+	expiredTokens := []*WatchedToken{}
 
 	for mint, token := range p.watchList {
 		if now.Sub(token.FirstSeenAt) > maxWatchDuration {
 			expired = append(expired, mint)
+			expiredTokens = append(expiredTokens, token)
 		}
 	}
 
@@ -309,6 +339,11 @@ func (p *Processor) cleanupWatchList() {
 		p.statsMux.Lock()
 		p.stats.tokensRejected += len(expired)
 		p.statsMux.Unlock()
+
+		// Log expired tokens
+		for _, token := range expiredTokens {
+			p.addEventToLog("watch_expired", token.Mint, token.RejectReason)
+		}
 	}
 
 	for _, mint := range expired {
@@ -348,7 +383,33 @@ func indexIgnoreCase(s, substr string) int {
 	return -1
 }
 
-// printStatusLine prints an in-place updating status line
+// addEventToLog adds an event to the rolling log (keeps last 5)
+func (p *Processor) addEventToLog(eventType, mint, message string) {
+	p.eventMux.Lock()
+	defer p.eventMux.Unlock()
+
+	// Add new event
+	p.recentEvents = append(p.recentEvents, eventLog{
+		timestamp: time.Now(),
+		eventType: eventType,
+		mint:      mint,
+		message:   message,
+	})
+
+	// Keep only last 5 events
+	if len(p.recentEvents) > 5 {
+		p.recentEvents = p.recentEvents[len(p.recentEvents)-5:]
+	}
+	// Don't print here - let the status ticker handle it
+}
+
+// clearStatusDisplay clears the display before important messages
+func (p *Processor) clearStatusDisplay() {
+	// Simple newline - let logs scroll naturally
+	fmt.Println()
+}
+
+// printStatusLine prints a periodic summary block
 func (p *Processor) printStatusLine() {
 	p.statsMux.Lock()
 	detected := p.stats.tokensDetected
@@ -360,8 +421,65 @@ func (p *Processor) printStatusLine() {
 	watching := len(p.watchList)
 	p.watchMux.RUnlock()
 
-	// Print status line with carriage return (overwrites previous line)
-	// Use fmt.Printf to write directly to stdout (bypasses zerolog)
-	fmt.Printf("\r\033[K📊 %d detected | %d rejected | %d watching | %d bought",
+	// Get recent events
+	p.eventMux.Lock()
+	recentEvents := make([]eventLog, len(p.recentEvents))
+	copy(recentEvents, p.recentEvents)
+	p.eventMux.Unlock()
+
+	// Print timestamp
+	now := time.Now().Format("15:04:05")
+	fmt.Printf("\n[%s] Recent Activity:\n", now)
+
+	// Print up to 5 recent events
+	if len(recentEvents) == 0 {
+		fmt.Println("  (No events yet)")
+	} else {
+		for _, event := range recentEvents {
+			elapsed := time.Since(event.timestamp)
+			icon := getEventIcon(event.eventType)
+			fmt.Printf("  %s %s | %s | %s ago\n",
+				icon,
+				formatMint(event.mint),
+				event.message,
+				formatDuration(elapsed))
+		}
+	}
+
+	// Print status line
+	fmt.Printf("\n📊 %d detected | %d rejected | %d watching | %d bought\n",
 		detected, rejected, watching, bought)
+	fmt.Println("─────────────────────────────────────────────────────────")
+} // getEventIcon returns the appropriate icon for an event type
+func getEventIcon(eventType string) string {
+	switch eventType {
+	case "reject":
+		return "❌"
+	case "watch":
+		return "🔍"
+	case "watch_success":
+		return "🎯"
+	case "watch_expired":
+		return "⏱️"
+	case "buy":
+		return "✅"
+	case "buy_fail":
+		return "⚠️"
+	default:
+		return "•"
+	}
+}
+
+// formatDuration formats a duration in a human-readable short form
+func formatDuration(d time.Duration) string {
+	if d < time.Second {
+		return "just now"
+	}
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%dm%ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh%dm", int(d.Hours()), int(d.Minutes())%60)
 }
